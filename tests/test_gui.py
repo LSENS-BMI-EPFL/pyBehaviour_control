@@ -36,7 +36,12 @@ def window(app, tmp_path):
     yield w
     if w.session is not None:
         w._stop()
-    w.close()
+    # destroy Qt objects now, not during interpreter shutdown (where shiboken crashed on CI)
+    for child in (w.opto_window, w.pdco_window, w):
+        if child is not None:
+            child.close()
+            child.deleteLater()
+    app.processEvents()
 
 
 def pump(app, seconds):

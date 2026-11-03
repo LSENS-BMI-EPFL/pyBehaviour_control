@@ -3,7 +3,7 @@ name = "pybehaviour-control"
 version = "0.1.0"
 description = "Python port of the LSENS behaviour_control detection task (NI-DAQ + Qt GUI)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
