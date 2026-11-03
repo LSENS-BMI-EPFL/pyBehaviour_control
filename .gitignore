@@ -1,0 +1,14 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# test / sim output
+.pytest_cache/
+tests/data/matlab_sessions/*/results_replay.csv
