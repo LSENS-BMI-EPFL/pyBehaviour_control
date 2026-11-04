@@ -97,6 +97,19 @@ then reports reward volumes from that measurement, and with two or more
 opening times the window suggests the opening for a target volume. No more
 association session to calibrate the valve.
 
+## Sound calibration
+
+*Tools ▸ Sound calibration* (or *Calibrate speaker…* in the Auditory settings)
+plays the task's auditory tone every few seconds until stopped. Put the dB
+meter where the mouse's head is; amplitude, frequency and duration can be
+changed while it runs and apply from the next tone. Save the level the meter
+shows: readings are logged per rig
+(`<calibration folder>/sound/<rig>_sound_calibration.csv`), and the window
+suggests the amplitude for a target level at that frequency (level scales as
+20·log10 of the amplitude) and can set it for the task. Meters with Fast/Slow
+weighting read short tones low: measure a long tone (default 1000 ms) or use
+max hold.
+
 ## Using the GUI
 
 Settings are on the left (preset bar and tabs), live signals and performance in the centre,

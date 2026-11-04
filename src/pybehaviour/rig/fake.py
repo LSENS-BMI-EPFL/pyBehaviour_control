@@ -234,6 +234,10 @@ class FakeRig:
     def valve_open(self, valve_ms):
         self._log("valve_open", valve_ms)
 
+    # speaker calibration -------------------------------------------------
+    def play_sound_now(self, wave):
+        self._log("play_sound_now", wave.size, float(np.max(np.abs(wave))) if wave.size else 0.0)
+
     # calibration ---------------------------------------------------------
     sim_coil_mT_per_volt = 10.0  # simulated coil
     sim_teslameter_mT_per_volt = 100.0  # simulated sensor scale

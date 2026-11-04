@@ -326,6 +326,46 @@ def test_valve_suggestion_sets_opening(app, tmp_path):
         x.close()
 
 
+# --- sound calibration ----------------------------------------------------------------
+
+def test_sound_calibration_end_to_end(app, tmp_path):
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.calibration.directory = str(tmp_path / "cal")
+    w.set_params(w.params().copy(aud_stim_amp=2.0, aud_stim_freq=8000))
+    w._open_sound_calibration()
+    sw = w.sound_window
+    assert sw.amplitude.value() == 2.0 and sw.freq.value() == 8000  # starts from the task's tone
+    assert "needs a reading at 8000 Hz" in sw.suggestion.text()
+    sw.duration.setValue(20)
+    sw.interval.setValue(0.2)
+    sw.start()
+    end = time.time() + 5
+    while sw.run.count < 1 and time.time() < end:
+        pump(app, 0.02)
+    sw.amplitude.setValue(1.0)  # applied from the next tone
+    n = sw.run.count
+    while sw.run.count < n + 1 and time.time() < end:
+        pump(app, 0.02)
+    sw.stop()
+    while not sw.run.done.is_set() and time.time() < end:
+        pump(app, 0.02)
+    pump(app, 0.2)
+    peaks = [c[3] for c in sw.run.rig.calls if c[1] == "play_sound_now"]
+    assert peaks[0] == pytest.approx(2.0, abs=0.01) and peaks[-1] == pytest.approx(1.0, abs=0.01)
+    assert sw.start_btn.isEnabled() and "Stopped after" in sw.status.text()
+
+    sw.db.setValue(64)
+    sw.save()
+    assert sw.table.rowCount() == 1 and "64 dB SPL" in sw.result.text()
+    sw.target.setValue(70)  # +6 dB: about double
+    assert sw.use_btn.isEnabled()
+    sw.use_suggestion()
+    assert w.params().aud_stim_amp == pytest.approx(1.995, abs=0.001)
+    assert w.params().aud_stim_freq == 8000
+    for x in (sw, w):
+        x.close()
+
+
 # --- export as rig defaults ----------------------------------------------------------
 
 def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):

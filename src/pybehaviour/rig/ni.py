@@ -21,6 +21,7 @@ Not testable without NI hardware: validate on the rig (see docs/RIG_VALIDATION.m
 from __future__ import annotations
 
 import time
+import warnings
 
 import numpy as np
 
@@ -39,6 +40,18 @@ except ImportError:  # pragma: no cover
     nidaqmx = None
 
 READ_TIMEOUT_S = 2.0
+STOPPED_EARLY_WARNING = 200010  # finite task stopped before all samples were generated
+
+
+def _stop_task(task) -> None:
+    """stop() a task on purpose. Re-arming a reward or stimulus whose trigger never
+    came (miss, catch trial) makes DAQmx warn 200010 every trial: drop only that one."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        task.stop()
+    for w in caught:
+        if getattr(w.message, "error_code", None) != STOPPED_EARLY_WARNING:
+            warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
 
 
 class RigError(RuntimeError):
@@ -203,8 +216,8 @@ class NiRig:
     # --- stimulus ---------------------------------------------------------
     def arm_stim(self, analog: np.ndarray, digital: np.ndarray) -> None:
         ao, do = self._tasks["stim_ao"], self._tasks["stim_do"]
-        ao.stop()
-        do.stop()
+        _stop_task(ao)
+        _stop_task(do)
         n = analog.shape[0]
         ao.timing.cfg_samp_clk_timing(self.stim_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=n)
         do.timing.cfg_samp_clk_timing(self.stim_rate, source=f"/{self._stim_device}/ao/SampleClock",
@@ -262,7 +275,7 @@ class NiRig:
 
     def _load_reward(self, vec: np.ndarray, triggered: bool) -> None:
         task = self._tasks["reward"]
-        task.stop()
+        _stop_task(task)
         task.timing.cfg_samp_clk_timing(self.reward_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=max(vec.size, 2))
         if triggered:
             task.triggers.start_trigger.cfg_dig_edge_start_trig(self.cfg.reward.trigger, Edge.RISING)
@@ -278,7 +291,7 @@ class NiRig:
         task = self._tasks.get("opto")
         if task is None:
             raise RigError("Opto session requested but 'opto.enabled' is false in the rig file.")
-        task.stop()
+        _stop_task(task)
         task.timing.cfg_samp_clk_timing(self.opto_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=out.shape[0])
         self._opto_writer.write_many_sample(np.ascontiguousarray(out.T, dtype=np.float64))
         self._opto_idle = [-1.0, float(out[-1, 1]), float(out[-1, 2])]
@@ -325,6 +338,19 @@ class NiRig:
             t.timing.cfg_samp_clk_timing(self.reward_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=vec.size)
             t.write(vec, auto_start=True)
             t.wait_until_done(timeout=vec.size / self.reward_rate + 2)
+
+    # --- speaker calibration ----------------------------------------------------
+    def play_sound_now(self, wave: np.ndarray) -> None:
+        """Play ``wave`` on the auditory output (stim.ao[1]) now. Outside sessions only.
+        The task's tone ends on a 0 V sample, so the output is left at 0 V."""
+        if "stim_ao" in self._tasks:
+            raise RigError("Sound calibration cannot run during a session.")
+        wave = np.ascontiguousarray(wave, dtype=np.float64)
+        with nidaqmx.Task("sound_cal") as t:
+            t.ao_channels.add_ao_voltage_chan(self.cfg.stim.ao[1], min_val=-10, max_val=10)
+            t.timing.cfg_samp_clk_timing(self.stim_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=wave.size)
+            t.write(wave, auto_start=True)
+            t.wait_until_done(timeout=wave.size / self.stim_rate + 2)
 
     # --- coil calibration -------------------------------------------------------
     def calibration_trial(self, stim: np.ndarray) -> np.ndarray:
@@ -389,7 +415,7 @@ class NiRig:
         task = self._tasks.get(name)
         if task is not None:
             try:
-                task.stop()
+                _stop_task(task)
             except Exception:
                 pass
 

@@ -22,6 +22,7 @@ src/pybehaviour/
   presets.py       named settings presets per rig, start-up order of defaults
   calibration.py   coil calibration (plan, peak/fit analysis, files, background run)
   valve_calibration.py  reward valve calibration (N openings, µL log per rig)
+  sound_calibration.py  speaker calibration (repeated task tone, dB SPL log per rig)
   settings_doc.py  description of every setting; generates docs/SETTINGS.md
   modules/         optional features with hooks (opto.py, pdco.py, context.py)
   rig/             Rig interface, FakeRig (tests/sim), NiRig (hardware), rig.yaml loader

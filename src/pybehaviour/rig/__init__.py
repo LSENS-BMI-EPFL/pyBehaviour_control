@@ -63,6 +63,10 @@ class Rig(Protocol):
     def valve_open(self, valve_ms: float) -> None:
         """Open the reward valve once for ``valve_ms`` (hardware-timed) and wait until closed."""
 
+    # speaker calibration (outside sessions)
+    def play_sound_now(self, wave: np.ndarray) -> None:
+        """Play ``wave`` on the auditory output now, without trigger, and wait until done."""
+
     # coil calibration (outside sessions)
     def calibration_trial(self, stim: np.ndarray) -> np.ndarray:
         """Play ``stim`` on the coil output and return the teslameter input (V), same length."""

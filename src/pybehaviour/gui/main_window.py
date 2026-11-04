@@ -39,6 +39,7 @@ from .calibration_window import CalibrationWindow
 from .export_dialog import ExportDefaultsDialog
 from .opto_window import OptoWindow
 from .pdco_window import PdcoWindow
+from .sound_window import SoundWindow
 from .valve_window import ValveWindow
 
 BEHAVIOUR_TYPES = ["free_licking", "auditory", "light", "whisker", "whisker_context", "whisker_psy",
@@ -130,6 +131,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.opto_module: OptoModule | None = None
         self.calibration_window: CalibrationWindow | None = None
         self.valve_window: ValveWindow | None = None
+        self.sound_window: SoundWindow | None = None
         self._volume_per_reward: tuple[float, bool] = (DEFAULT_VOLUME_PER_REWARD_UL, False)
         self.b = Binder(self._params_changed)
         self._defaults = defaults or SessionParams()
@@ -230,6 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
         t = bar.addMenu("&Tools")
         t.addAction("Coil calibration…", self._open_calibration)
         t.addAction("Valve calibration…", self._open_valve_calibration)
+        t.addAction("Sound calibration…", self._open_sound_calibration)
         t.addAction("Optogenetics settings…", lambda: self._show_module_window("opto"))
         t.addAction("PdCO settings…", lambda: self._show_module_window("pdco"))
 
@@ -396,6 +399,10 @@ class MainWindow(QtWidgets.QMainWindow):
         aud.row("Amplitude (V)", b.spin("aud_stim_amp", 3))
         aud.row("Frequency (Hz)", b.spin("aud_stim_freq", 0))
         aud.row("Weight", b.spin("aud_stim_weight", 0))
+        sound_btn = QtWidgets.QPushButton("Calibrate speaker…")
+        sound_btn.setToolTip("Play the tone every few seconds and read the dB meter")
+        sound_btn.clicked.connect(self._open_sound_calibration)
+        aud.full(sound_btn)
         light = Form("Light")
         light.row("Duration (ms)", b.spin("light_duration", 1))
         light.full(b.check("light_stim_amp_range", "Several amplitudes (psychometric)"))
@@ -743,6 +750,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.valve_window.raise_()
         self.valve_window.activateWindow()
 
+    def _open_sound_calibration(self) -> None:
+        if self.sound_window is None:
+            self.sound_window = SoundWindow(self, self.rig_config, self.rig_factory,
+                                            lambda: self.session is not None and self.session.running)
+        else:
+            self.sound_window.load_from_task()
+        self.sound_window.show()
+        self.sound_window.raise_()
+        self.sound_window.activateWindow()
+
     def refresh_reward_volume(self) -> None:
         """µL per reward for the current valve opening, from the rig's valve log."""
         from ..valve_calibration import log_path, read_log, volume_per_opening
@@ -1014,7 +1031,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 event.ignore()
                 return
             self._stop()
-        for win in (self.opto_window, self.pdco_window, self.calibration_window, self.valve_window):
+        for win in (self.opto_window, self.pdco_window, self.calibration_window, self.valve_window, self.sound_window):
             if win is not None:
                 win.close()
         event.accept()
