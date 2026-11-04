@@ -312,6 +312,45 @@ class NiRig:
                 t.ao_channels.add_ao_voltage_chan(ch, min_val=-10, max_val=10)
             t.write([-1.0, float(out[-1, 1]), float(out[-1, 2])])
 
+    # --- valve calibration ------------------------------------------------------
+    def valve_open(self, valve_ms: float) -> None:
+        """One hardware-timed valve opening on the reward output. Outside sessions only."""
+        from ..stimuli import valve_pulse
+
+        if "reward" in self._tasks:
+            raise RigError("Valve calibration cannot run during a session.")
+        vec = valve_pulse(valve_ms, self.reward_rate)
+        with nidaqmx.Task("valve_cal") as t:
+            t.ao_channels.add_ao_voltage_chan(self.cfg.reward.channel)
+            t.timing.cfg_samp_clk_timing(self.reward_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=vec.size)
+            t.write(vec, auto_start=True)
+            t.wait_until_done(timeout=vec.size / self.reward_rate + 2)
+
+    # --- coil calibration -------------------------------------------------------
+    def calibration_trial(self, stim: np.ndarray) -> np.ndarray:
+        """Coil output and teslameter input on one sample clock (calibration_coil.m). No session needed."""
+        c = self.cfg.calibration
+        ao_dev = c.coil_output.strip("/").split("/")[0]
+        ai_dev = c.sensor_input.strip("/").split("/")[0]
+        if ao_dev != ai_dev:
+            raise RigError(f"Coil output ({c.coil_output}) and teslameter input ({c.sensor_input}) must be on the same device.")
+        n = int(stim.size)
+        with nidaqmx.Task("cal_ao") as ao, nidaqmx.Task("cal_ai") as ai:
+            ao.ao_channels.add_ao_voltage_chan(c.coil_output, min_val=-10, max_val=10)
+            ai.ai_channels.add_ai_voltage_chan(c.sensor_input, terminal_config=_terminal(c.sensor_terminal))
+            ao.timing.cfg_samp_clk_timing(c.rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=n)
+            ai.timing.cfg_samp_clk_timing(c.rate, source=f"/{ao_dev}/ao/SampleClock",
+                                          sample_mode=AcquisitionType.FINITE, samps_per_chan=n)
+            ao.write(np.ascontiguousarray(stim, dtype=np.float64), auto_start=False)
+            ai.start()  # waits for the AO sample clock
+            ao.start()
+            data = np.asarray(ai.read(number_of_samples_per_channel=n, timeout=n / c.rate + 5), dtype=float)
+            ao.wait_until_done(timeout=5)
+        with nidaqmx.Task("cal_idle") as t:  # AO keeps its last value: make sure the coil is at 0 V
+            t.ao_channels.add_ao_voltage_chan(c.coil_output, min_val=-10, max_val=10)
+            t.write(0.0)
+        return data
+
     # --- lines ----------------------------------------------------------------
     def reset_triggers(self) -> None:
         self._triggers = [False, False, False]

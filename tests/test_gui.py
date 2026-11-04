@@ -164,3 +164,200 @@ def test_every_setting_is_labelled_for_screen_readers(window):
 def test_keyboard_shortcuts(window):
     keys = {s.key().toString() for s in window.findChildren(QtGui.QShortcut)}
     assert {"F5", "F6", "F7", "F8"} <= keys
+
+
+# --- presets ----------------------------------------------------------------------
+
+def make_window(tmp_path, preset_dir, **kw):
+    from pybehaviour.gui.main_window import MainWindow
+    from pybehaviour.presets import PresetStore, startup_params
+    from pybehaviour.rig.config import RigConfig
+
+    cfg = RigConfig(name="rigA")
+    store = PresetStore(preset_dir)
+    rig_defaults = {"behaviour_directory": str(tmp_path), "lick_threshold": 0.05}
+    params, preset = startup_params(rig_defaults, store)
+    base, _ = startup_params(rig_defaults, None)
+    return MainWindow(lambda: FakeRig(), params, rig_config=cfg, presets=store, preset=preset, rig_defaults=base, **kw)
+
+
+def test_preset_is_restored_when_the_gui_reopens(app, tmp_path):
+    from pybehaviour.modules.opto import OptoConfig
+
+    w = make_window(tmp_path, tmp_path / "presets")
+    assert w.params().lick_threshold == 0.05  # rig default
+    assert w.preset_box.currentText() == "Rig defaults"
+    w.b.widgets["min_iti"].setValue(1234)
+    w.b.widgets["opto_session"].setChecked(True)
+    w.opto_window.set_config(OptoConfig(grid="Grid 3", frequency=25))
+    w._write_preset("Jules psy")
+    assert w.preset_state.text() == "saved"
+    w.b.widgets["min_iti"].setValue(999)
+    assert "modified" in w.preset_state.text()
+    w.close()
+
+    w2 = make_window(tmp_path, tmp_path / "presets")  # reopening picks the last used preset
+    assert w2.preset_box.currentText() == "Jules psy"
+    assert w2.params().min_iti == 1234 and w2.params().opto_session
+    app.processEvents()  # opto window opens for a preset with opto on
+    assert w2.opto_window is not None and w2.opto_window.config().grid == "Grid 3"
+    assert w2.opto_window.config().frequency == 25
+    for x in (w2.opto_window, w2):
+        x.close()
+
+
+def test_switching_presets_and_back_to_rig_defaults(app, tmp_path):
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.b.widgets["no_stim_weight"].setValue(7)
+    w._write_preset("A")
+    w.b.widgets["no_stim_weight"].setValue(3)
+    w._write_preset("B")
+    w._select_preset("A")
+    assert w.params().no_stim_weight == 7 and w.presets.last_used() == "A"
+    w._select_preset(None)
+    assert w.params().no_stim_weight == 0 and w.params().lick_threshold == 0.05
+    assert w.presets.last_used() is None
+    assert [w.preset_box.itemText(i) for i in range(w.preset_box.count())] == ["Rig defaults", "A", "B"]
+    w.close()
+
+
+def test_load_settings_from_previous_session(app, tmp_path, monkeypatch):
+    import json
+
+    cfg = tmp_path / "session_config.json"
+    cfg.write_text(json.dumps({"response_window": 777, "mouse_weight_before": 22}))
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(cfg), ""))
+    w = make_window(tmp_path, tmp_path / "presets")
+    w._load_from_session()
+    assert w.params().response_window == 777 and w.params().mouse_weight_before == 0
+    w.close()
+
+
+# --- coil calibration ---------------------------------------------------------------
+
+def test_coil_calibration_fills_whisker_mT(app, tmp_path, monkeypatch):
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.calibration.directory = str(tmp_path / "cal")
+    w.set_params(w.params().copy(mouse_name="CAL01", wh_stim_amp_range=True, wh_stim_amp_1=1.0, wh_stim_amp_2=2.0,
+                                 wh_stim_weight_1=1, wh_stim_weight_2=1))
+    w._open_calibration()
+    cw = w.calibration_window
+    assert [c.isChecked() for c in cw.amp_checks] == [True, True, False, False, False]
+    for key, value in (("baseline_ms", 50), ("trial_ms", 100), ("pause_s", 0), ("repeats", 2)):
+        cw.spins[key].setValue(value)
+    cw.start()
+    end = time.time() + 10
+    while not cw.run.done.is_set() and time.time() < end:
+        pump(app, 0.05)
+    pump(app, 0.3)
+    assert cw.run.error is None and cw.table.rowCount() == 2
+    assert (tmp_path / "cal" / "CAL01").exists() and cw.saved_to.endswith("_stim_coil_calibration.mat")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question", lambda *a, **k: QtWidgets.QMessageBox.Yes)
+    cw.apply_to_task()
+    p = w.params()
+    assert p.wh_stim_amp_mT_1 == pytest.approx(10, rel=0.05)  # FakeRig coil: 10 mT/V
+    assert p.wh_stim_amp_mT_2 == pytest.approx(20, rel=0.05)
+    for x in (cw, w):
+        x.close()
+
+
+def test_calibration_refused_during_session(app, window, tmp_path, monkeypatch):
+    shown = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: shown.append(a[1]))
+    window.set_params(quick_params(wh_stim_weight_1=1, behaviour_directory=str(tmp_path)))
+    window._start()
+    window._open_calibration()
+    window.calibration_window.start()
+    assert shown == ["Session running"] and window.calibration_window.run is None
+    window._stop()
+    window.calibration_window.close()
+
+
+def test_tooltips_show_setting_names(window):
+    assert window.b.widgets["min_iti"].toolTip().endswith("Setting name: min_iti")
+    assert "Setting name: baseline_window" in window.b.widgets["baseline_window"].toolTip()
+
+
+# --- valve calibration ----------------------------------------------------------------
+
+def test_valve_calibration_end_to_end(app, tmp_path):
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.calibration.directory = str(tmp_path / "cal")
+    w.set_params(w.params().copy(reward_valve_duration=40))
+    w.refresh_reward_volume()
+    assert "Not calibrated at 40 ms" in w.valve_volume_label.text()
+    w._open_valve_calibration()
+    vw = w.valve_window
+    assert vw.valve_ms.value() == 40 and vw.n.value() == 50  # defaults: current opening, 50 times
+    vw.n.setValue(4)
+    vw.interval.setValue(0.05)
+    vw.start()
+    end = time.time() + 5
+    while not vw.run.done.is_set() and time.time() < end:
+        pump(app, 0.02)
+    pump(app, 0.2)
+    assert vw.run.count == 4 and vw.save_btn.isEnabled()
+    assert [c[2] for c in vw.run.rig.calls if c[1] == "valve_open"] == [40] * 4
+    vw.weight.setValue(18)
+    vw.save()
+    assert "4.50 µL per opening" in vw.result.text()
+    assert vw.table.rowCount() == 1
+    assert "Calibrated: 4.50 µL per reward at 40 ms" in w.valve_volume_label.text()
+    assert w.tiles["reward"].label.text() == "Reward (µL)"
+    for x in (vw, w):
+        x.close()
+
+
+def test_valve_suggestion_sets_opening(app, tmp_path):
+    from pybehaviour.valve_calibration import ValveMeasurement, append_log, log_path
+
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.calibration.directory = str(tmp_path / "cal")
+    path = log_path(tmp_path / "cal", "rigA")
+    append_log(path, ValveMeasurement(40, 50, 1, 200, rig="rigA"))  # 4 µL
+    append_log(path, ValveMeasurement(80, 50, 1, 400, rig="rigA"))  # 8 µL
+    w._open_valve_calibration()
+    vw = w.valve_window
+    vw.target.setValue(6)
+    assert "60.0 ms" in vw.suggestion.text()
+    vw.use_suggestion()
+    assert w.params().reward_valve_duration == 60
+    for x in (vw, w):
+        x.close()
+
+
+# --- export as rig defaults ----------------------------------------------------------
+
+def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
+    import yaml
+
+    from pybehaviour.gui.export_dialog import ExportDefaultsDialog
+
+    rig = tmp_path / "rig3.yaml"
+    rig.write_text("name: rigA  # bench\ndefaults:\n  lick_threshold: 0.05\n")
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.source = str(rig)
+    w.b.widgets["min_iti"].setValue(4321)
+    w.b.widgets["aud_reward"].setChecked(False)
+    dlg = ExportDefaultsDialog(w)
+    text = dlg.preview.toPlainText()
+    assert "min_iti: 4321" in text and "aud_reward: false" in text
+    assert "behaviour_directory" not in text  # the rig file sets it at the top level
+    dlg.all.setChecked(True)
+    assert "max_iti:" in dlg.preview.toPlainText()
+    dlg.changed_only.setChecked(True)
+
+    dlg.save_to_file(str(tmp_path / "exported.yaml"))
+    assert yaml.safe_load((tmp_path / "exported.yaml").read_text())["defaults"]["min_iti"] == 4321
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question", lambda *a, **k: QtWidgets.QMessageBox.Yes)
+    dlg.write_rig_file()
+    data = yaml.safe_load(rig.read_text())
+    assert data["defaults"]["min_iti"] == 4321 and "# bench" in rig.read_text()
+    assert (tmp_path / "rig3.yaml.bak").exists()
+    # "Rig defaults" now restores the exported values
+    w.b.widgets["min_iti"].setValue(1000)
+    w._select_preset(None)
+    assert w.params().min_iti == 4321
+    for x in (dlg, w):
+        x.close()

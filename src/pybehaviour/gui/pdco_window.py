@@ -117,6 +117,35 @@ class PdcoWindow(QtWidgets.QWidget):
             **{k: w.value() for k, w in self.prob.items()},
         ).normalised()
 
+    def set_config(self, cfg: PdcoConfig) -> None:
+        """Show a saved configuration (presets)."""
+        widgets = [*self.ch["ch1"].values(), *self.ch["ch2"].values(), *self.exp.values(), *self.block.values(),
+                   *self.repeat.values(), *self.prob.values(), self.session_start, self.next_block, self.repeat_n,
+                   self.stop_btn]
+        for w in widgets:
+            w.blockSignals(True)
+        for ch in ("ch1", "ch2"):
+            p = getattr(cfg, ch)
+            f = self.ch[ch]
+            f["delay"].setValue(p.delay_s * 1000)
+            f["dur"].setValue(p.dur_s * 1000)
+            f["period"].setValue(p.period_s * 1000)
+            f["pw"].setValue(p.pw_s * 1000)
+            f["amp"].setValue(p.amp)
+        self.exp.get(cfg.exp_design, self.exp[""]).setChecked(True)
+        if cfg.block_design in self.block:
+            self.block[cfg.block_design].setChecked(True)
+        self.session_start.setChecked(cfg.ttl_ch1_start == "Session start")
+        self.next_block.setChecked(cfg.ttl_ch1_start == "Next block")
+        self.repeat.get(cfg.repeat_ttl_ch1, self.repeat["Never"]).setChecked(True)
+        self.repeat_n.setValue(int(cfg.repeat_ttl_ch1_n or 1))
+        self.stop_btn.setChecked(bool(cfg.ttl_ch2_start))
+        for key, w in self.prob.items():
+            w.setValue(getattr(cfg, key))
+        for w in widgets:
+            w.blockSignals(False)
+        self._changed()
+
     def attach(self, module: PdcoModule) -> None:
         self.module = module
         module.set_config(self.config())

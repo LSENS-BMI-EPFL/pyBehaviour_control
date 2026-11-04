@@ -49,6 +49,25 @@ opto:                       # laser + galvo mirrors (Opto session type)
                                        #   SV-07-051: [0.5196, -0.3453]   SV-07-068: [0.2616, -0.2856]
   bregma_directory: M:/analysis/Pol_Bech/Parameters/Optogenetics   # holds mouse_bregma.csv
 
+calibration:                # coil calibration (Tools > Coil calibration)
+  coil_output: Dev2/ao0
+  sensor_input: Dev2/ai6       # teslameter output; ai6 is also PdCO TTL ch1 in the log, re-wire for calibration
+  sensor_terminal: DIFF
+  rate: 100000
+  mT_per_volt: 100             # teslameter scale
+  directory: C:/calibration    # results go to <directory>/<mouse>/<mouse>_<date>/
+
+# Default GUI values for this rig. Any setting name from session_config.json.
+# Personal / per-task values belong in presets (saved from the GUI), not here.
+defaults:
+  lick_threshold: 0.03
+  min_iti: 6000
+  max_iti: 10000
+
+# Presets saved from the GUI ("Save as…"). Relative to this file.
+# Default: presets/<rig name>/
+# presets_directory: presets/example
+
 # At startup, pulse the stimulus trigger and check it shows up on the logged
 # trial_ttl input. Refuses to start if not (wrong device names / wiring).
 check_trigger_loopback: true

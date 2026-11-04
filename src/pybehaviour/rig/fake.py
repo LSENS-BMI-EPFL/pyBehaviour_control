@@ -230,6 +230,21 @@ class FakeRig:
     def play_opto_now(self, out):
         self._log("play_opto_now", out.shape[0])
 
+    # valve calibration ---------------------------------------------------
+    def valve_open(self, valve_ms):
+        self._log("valve_open", valve_ms)
+
+    # calibration ---------------------------------------------------------
+    sim_coil_mT_per_volt = 10.0  # simulated coil
+    sim_teslameter_mT_per_volt = 100.0  # simulated sensor scale
+
+    def calibration_trial(self, stim):
+        """Simulated teslameter: field proportional to the command, plus offset and noise."""
+        self._log("calibration_trial", stim.size)
+        rng = np.random.default_rng(len(self.calls))
+        field_mT = self.sim_coil_mT_per_volt * np.asarray(stim, dtype=float)
+        return field_mT / self.sim_teslameter_mT_per_volt + 0.002 + 0.0002 * rng.standard_normal(stim.size)
+
     # lines ----------------------------------------------------------------
     def reset_triggers(self):
         self.trigger_lines = [False, False, False]

@@ -157,6 +157,20 @@ class OptoWindow(QtWidgets.QWidget):
         return OptoConfig(grid=self.grid_box.currentText(), pulse_shape=("square", "cosine")[self.shape.currentIndex()],
                           envelope=ENVELOPES[self.env.currentIndex()], **v)
 
+    def set_config(self, cfg: OptoConfig) -> None:
+        """Show a saved configuration (presets)."""
+        widgets = [*self.fields.values(), self.grid_box, self.shape, self.env]
+        for w in widgets:
+            w.blockSignals(True)
+        for key, w in self.fields.items():
+            w.setValue(getattr(cfg, key))
+        self.grid_box.setCurrentText(cfg.grid)
+        self.shape.setCurrentIndex(1 if cfg.pulse_shape == "cosine" else 0)
+        self.env.setCurrentIndex(ENVELOPES.index(cfg.envelope) if cfg.envelope in ENVELOPES else 0)
+        for w in widgets:
+            w.blockSignals(False)
+        self._changed()
+
     def attach(self, module: OptoModule | None) -> None:
         """Called by the main window at session start (module) and stop (None)."""
         self.module = module

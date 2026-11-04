@@ -80,6 +80,18 @@ class Opto:
 
 
 @dataclass
+class Calibration:
+    """Coil calibration: whisker coil output and teslameter input (calibration_coil.m)."""
+
+    coil_output: str = "Dev2/ao0"
+    sensor_input: str = "Dev2/ai6"  # note: ai6 is also logged as PdCO TTL ch1 during sessions
+    sensor_terminal: str = "DIFF"
+    rate: float = 100_000
+    mT_per_volt: float = 100.0  # teslameter output scale
+    directory: str = "C:/calibration"
+
+
+@dataclass
 class RigConfig:
     name: str = "default"
     behaviour_directory: str = "D:/Behavior/BehaviourData"
@@ -91,13 +103,34 @@ class RigConfig:
     lines: StaticLines = field(default_factory=StaticLines)
     camera: Camera = field(default_factory=Camera)
     opto: Opto = field(default_factory=Opto)
+    calibration: Calibration = field(default_factory=Calibration)
+    # GUI defaults for this rig (any SessionParams field), e.g. {"lick_threshold": 0.05}
+    defaults: dict = field(default_factory=dict)
+    # where named presets are stored; relative paths are relative to the rig file
+    presets_directory: str = ""
+    source: str = ""  # path of the rig file, set by load()
     # check at startup that the stimulus trigger reaches the logged trial_ttl input
     check_trigger_loopback: bool = True
 
     @classmethod
     def load(cls, path: Path) -> "RigConfig":
         data = yaml.safe_load(Path(path).read_text()) or {}
-        return _build(cls, data)
+        cfg = _build(cls, data)
+        cfg.source = str(Path(path).resolve())
+        from ..params import PARAM_FIELDS
+
+        unknown = sorted(set(cfg.defaults) - set(PARAM_FIELDS))
+        if unknown:
+            raise ValueError(f"Unknown setting(s) under 'defaults' in {path}: {unknown}")
+        return cfg
+
+    def presets_path(self) -> Path:
+        """Folder holding this rig's presets."""
+        base = Path(self.source).parent if self.source else Path.cwd()
+        if self.presets_directory:
+            p = Path(self.presets_directory)
+            return p if p.is_absolute() else base / p
+        return base / "presets" / self.name
 
     def devices(self) -> set[str]:
         """Device names referenced anywhere in the config (e.g. {'Dev1', 'Dev2'})."""
@@ -120,7 +153,7 @@ def _build(cls, data: dict):
     kwargs = {}
     for key, value in data.items():
         default = known[key].default_factory() if callable(known[key].default_factory) else known[key].default
-        kwargs[key] = _build(type(default), value) if is_dataclass(default) else value
+        kwargs[key] = _build(type(default), value or {}) if is_dataclass(default) else value
     return cls(**kwargs)
 
 

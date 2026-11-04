@@ -24,9 +24,10 @@ import pyqtgraph as pg
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from ..modules.context import ContextModule
-from ..modules.opto import OptoModule
-from ..modules.pdco import PdcoModule
+from ..modules.opto import OptoConfig, OptoModule
+from ..modules.pdco import PdcoConfig, PdcoModule
 from ..params import SessionParams
+from ..presets import Preset, PresetStore, check_name, load_session_settings
 from ..results import compute_performance, compute_reward_volume, early_lick_rate, sliding_rates
 from ..rig import Rig
 from ..rig.config import RigConfig
@@ -34,12 +35,15 @@ from ..session import Session
 from ..trial import Perf, TrialSpec
 from . import theme
 from .binder import Binder
+from .calibration_window import CalibrationWindow
+from .export_dialog import ExportDefaultsDialog
 from .opto_window import OptoWindow
 from .pdco_window import PdcoWindow
+from .valve_window import ValveWindow
 
 BEHAVIOUR_TYPES = ["free_licking", "auditory", "light", "whisker", "whisker_context", "whisker_psy",
                    "whisker_on_1", "whisker_off", "whisker_on_2", "light_psy", "light_on_1", "light_off", "light_on_2"]
-VOLUME_PER_REWARD_UL = 5  # must be calibrated per rig
+DEFAULT_VOLUME_PER_REWARD_UL = 5  # used until the valve is calibrated (Tools ▸ Valve calibration)
 
 OUTCOME_TEXT = {
     Perf.WHISKER_HIT: "Whisker hit", Perf.WHISKER_MISS: "Whisker miss",
@@ -113,7 +117,8 @@ class Tile(QtWidgets.QFrame):
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, rig_factory: Callable[[], Rig], defaults: SessionParams | None = None, title: str = "",
-                 rig_config: RigConfig | None = None):
+                 rig_config: RigConfig | None = None, presets: PresetStore | None = None,
+                 preset: Preset | None = None, rig_defaults: SessionParams | None = None):
         super().__init__()
         self.setWindowTitle(f"LSENS behaviour control {title}".strip())
         self.rig_factory = rig_factory
@@ -123,8 +128,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pdco_window: PdcoWindow | None = None
         self.opto_window: OptoWindow | None = None
         self.opto_module: OptoModule | None = None
+        self.calibration_window: CalibrationWindow | None = None
+        self.valve_window: ValveWindow | None = None
+        self._volume_per_reward: tuple[float, bool] = (DEFAULT_VOLUME_PER_REWARD_UL, False)
         self.b = Binder(self._params_changed)
         self._defaults = defaults or SessionParams()
+        self.presets = presets
+        self.preset: Preset | None = preset  # loaded preset, None = rig defaults
+        self._rig_defaults = rig_defaults or self._defaults  # what "Rig defaults" restores
+        # module settings from a preset, applied when their window opens
+        self._pending_opto: OptoConfig | None = preset.opto if preset else None
+        self._pending_pdco: PdcoConfig | None = preset.pdco if preset else None
         self._started_at: float | None = None
 
         central = QtWidgets.QWidget()
@@ -133,6 +147,7 @@ class MainWindow(QtWidgets.QMainWindow):
         outer.setContentsMargins(10, 8, 10, 8)
         outer.setSpacing(8)
         outer.addWidget(self._header())
+        self._menus()
 
         body = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         body.setChildrenCollapsible(False)
@@ -142,15 +157,18 @@ class MainWindow(QtWidgets.QMainWindow):
         body.setStretchFactor(0, 0)
         body.setStretchFactor(1, 1)
         body.setStretchFactor(2, 0)
-        body.setSizes([400, 1100, 260])
+        body.setSizes([450, 1080, 260])
         outer.addWidget(body, 1)
 
         self.b.write(self._defaults.copy(date=datetime.now().strftime("%Y%m%d")))
         self._update_enabled()
+        self._refresh_presets()
+        self.refresh_reward_volume()
         QtCore.QTimer.singleShot(0, self._open_enabled_module_windows)
         self._set_running(False)
         self._set_status("Ready", "idle")
         self._shortcuts()
+        self._add_setting_names_to_tooltips()
 
         self._event_timer = QtCore.QTimer(self, interval=50, timeout=self._poll_events)
         self._plot_timer = QtCore.QTimer(self, interval=50, timeout=self._update_live_plots)
@@ -195,6 +213,58 @@ class MainWindow(QtWidgets.QMainWindow):
         h.addWidget(self.elapsed)
         return w
 
+    def _menus(self) -> None:
+        bar = self.menuBar()
+        m = bar.addMenu("&Settings")
+        self.save_preset_action = m.addAction("Save preset", self._save_preset, QtGui.QKeySequence.Save)
+        m.addAction("Save preset as…", self._save_preset_as, QtGui.QKeySequence("Ctrl+Shift+S"))
+        self.delete_preset_action = m.addAction("Delete preset…", self._delete_preset)
+        m.addSeparator()
+        m.addAction("Load settings from a previous session…", self._load_from_session)
+        m.addAction("Reset to rig defaults", lambda: self._select_preset(None))
+        m.addAction("Export settings as rig defaults…", self._export_defaults)
+        m.addSeparator()
+        folder = str(self.presets.directory) if self.presets else "(no presets folder)"
+        info = m.addAction(f"Presets folder: {folder}")
+        info.setEnabled(False)
+        t = bar.addMenu("&Tools")
+        t.addAction("Coil calibration…", self._open_calibration)
+        t.addAction("Valve calibration…", self._open_valve_calibration)
+        t.addAction("Optogenetics settings…", lambda: self._show_module_window("opto"))
+        t.addAction("PdCO settings…", lambda: self._show_module_window("pdco"))
+
+    def _preset_bar(self) -> QtWidgets.QWidget:
+        w = QtWidgets.QFrame(objectName="card")
+        h = QtWidgets.QHBoxLayout(w)
+        h.setContentsMargins(8, 4, 8, 4)
+        lab = QtWidgets.QLabel("Preset")
+        self.preset_box = QtWidgets.QComboBox()
+        self.preset_box.setMinimumWidth(150)
+        self.preset_box.setAccessibleName("Settings preset")
+        self.preset_box.setToolTip("Saved settings for this rig. Pick one to load it; it is remembered for next time.")
+        lab.setBuddy(self.preset_box)
+        self.preset_box.activated.connect(self._preset_chosen)
+        self.preset_save_btn = QtWidgets.QPushButton("Save")
+        self.preset_save_btn.setToolTip("Overwrite the selected preset with the current settings (Ctrl+S)")
+        self.preset_save_btn.clicked.connect(self._save_preset)
+        save_as = QtWidgets.QPushButton("Save as…")
+        save_as.setToolTip("Save the current settings as a new preset (Ctrl+Shift+S)")
+        save_as.clicked.connect(self._save_preset_as)
+        self.preset_state = QtWidgets.QLabel("", objectName="muted")
+        self.preset_state.setAccessibleName("Preset state")
+        for x in (lab, self.preset_box, self.preset_save_btn, save_as):
+            h.addWidget(x)
+        h.addWidget(self.preset_state, 1)
+        if self.presets is None:
+            w.setEnabled(False)
+        return w
+
+    def _add_setting_names_to_tooltips(self) -> None:
+        """Hovering a field shows its setting name (for rig defaults and presets, see docs/SETTINGS.md)."""
+        for name, w in self.b.widgets.items():
+            tip = w.toolTip()
+            w.setToolTip(f"{tip}\n\nSetting name: {name}" if tip else f"Setting name: {name}")
+
     def _shortcuts(self) -> None:
         for key, fn in (("F5", self._start), ("F6", self._pause), ("F7", self._resume),
                         ("F8", self._manual_reward), ("Ctrl+.", self._stop)):
@@ -202,8 +272,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- settings (left) -----------------------------------------------------------
     def _settings_panel(self) -> QtWidgets.QWidget:
+        panel = QtWidgets.QWidget()
+        pv = QtWidgets.QVBoxLayout(panel)
+        pv.setContentsMargins(0, 0, 0, 0)
+        pv.setSpacing(6)
+        pv.addWidget(self._preset_bar())
         tabs = QtWidgets.QTabWidget()
-        tabs.setMinimumWidth(360)
+        tabs.setMinimumWidth(430)
+        pv.addWidget(tabs, 1)
         for title, builder in (("Session", self._tab_session), ("Trial", self._tab_trial), ("Stimuli", self._tab_stimuli),
                                ("Reward", self._tab_reward), ("Context", self._tab_context)):
             page = QtWidgets.QWidget()
@@ -214,10 +290,11 @@ class MainWindow(QtWidgets.QMainWindow):
             lay.addStretch()
             scroll = QtWidgets.QScrollArea()
             scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
             scroll.setWidget(page)
             tabs.addTab(scroll, title)
         self.settings_tabs = tabs
-        return tabs
+        return panel
 
     def _tab_session(self):
         b = self.b
@@ -310,6 +387,10 @@ class MainWindow(QtWidgets.QMainWindow):
         wh.row("Scaling factor", b.spin("wh_scaling_factor", 2, step=0.05), tip="Amplitude of the return phase")
         wh.full(b.check("wh_stim_amp_range", "Several amplitudes (psychometric)"))
         self._amp_table(wh, "wh_stim", "wh_stim_amp_mT", "Amplitude (mT)", "Weight")
+        cal = QtWidgets.QPushButton("Calibrate coil…")
+        cal.setToolTip("Measure the field (mT) for these amplitudes with the teslameter")
+        cal.clicked.connect(self._open_calibration)
+        wh.full(cal)
         aud = Form("Auditory")
         aud.row("Duration (ms)", b.spin("aud_stim_duration", 1))
         aud.row("Amplitude (V)", b.spin("aud_stim_amp", 3))
@@ -328,6 +409,12 @@ class MainWindow(QtWidgets.QMainWindow):
         b = self.b
         r = Form("Reward")
         r.row("Valve opening (ms)", b.spin("reward_valve_duration", 0))
+        self.valve_volume_label = QtWidgets.QLabel("", objectName="muted", wordWrap=True)
+        r.full(self.valve_volume_label)
+        valve_btn = QtWidgets.QPushButton("Calibrate valve…")
+        valve_btn.setToolTip("Open the valve N times and weigh the water to get µL per reward")
+        valve_btn.clicked.connect(self._open_valve_calibration)
+        r.full(valve_btn)
         r.row("Reward delay (ms)", b.check("reward_delay_flag", "on"), b.spin("reward_delay_time", 0),
               tip="Delay between stimulus and valve in association mode")
         r.row("Partial reward", b.check("partial_reward_flag", "on"), b.spin("reward_proba", 2, 1, 0.05),
@@ -418,6 +505,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                                                       "anchors": [(1, 1), (1, 1)]})
         self.live_plots["lick"].addItem(self.thr_line)
         self._live_visible: tuple = ()
+        first.setXRange(0, 10, padding=0)
         lv.addWidget(self.live, 1)
         split.addWidget(live_card)
 
@@ -425,7 +513,9 @@ class MainWindow(QtWidgets.QMainWindow):
         pv = QtWidgets.QVBoxLayout(perf_card)
         pv.setContentsMargins(8, 6, 8, 6)
         top = QtWidgets.QHBoxLayout()
-        top.addWidget(QtWidgets.QLabel("<b>Performance</b> · sliding window over completed trials"))
+        perf_title = QtWidgets.QLabel("<b>Performance</b>")
+        perf_title.setToolTip("Hit and false-alarm rates over a sliding window of completed trials")
+        top.addWidget(perf_title)
         top.addSpacing(16)
         self.perf_key_labels = {}
         for key, text, color, dashed in (("aud", "Auditory hit", theme.AUDITORY, False), ("wh", "Whisker hit", theme.WHISKER, False),
@@ -464,6 +554,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                 (("aud", theme.AUDITORY), ("wh", theme.WHISKER), ("light", theme.LIGHT), ("fa", theme.TEXT_2))}
         for item in self.perf_end_labels.values():
             self.perf_plot.addItem(item)
+        self.perf_plot.setXRange(1, 20, padding=0)
         self._hover_line = pg.InfiniteLine(angle=90, pen=pg.mkPen(theme.BORDER))
         self._hover_text = pg.TextItem(color=theme.TEXT, fill=pg.mkBrush(255, 255, 255, 230), border=pg.mkPen(theme.BORDER), anchor=(0, 0))
         for it in (self._hover_line, self._hover_text):
@@ -478,6 +569,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.early_plot.getAxis("left").setTicks([[(0, "0%"), (0.5, "50%"), (1.0, "100%")]])
         self.early_plot.getAxis("left").setWidth(48)
         self.early_curve = self.early_plot.plot(pen=theme.pen(theme.TEXT_2))
+        self.early_plot.setXRange(1, 20, padding=0)
         perf.ci.layout.setRowStretchFactor(0, 3)
         perf.ci.layout.setRowStretchFactor(1, 1)
         pv.addWidget(perf, 1)
@@ -519,7 +611,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "wh": Tile("Whisker hit rate", theme.WHISKER),
             "light": Tile("Light hit rate", theme.LIGHT),
             "fa": Tile("False alarm rate", theme.FALSE_ALARM, dashed=True),
-            "reward": Tile("Reward (µL, approx.)"),
+            "reward": Tile("Reward (µL, not calibrated)"),
         }
         for t in self.tiles.values():
             v.addWidget(t)
@@ -538,7 +630,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def set_params(self, params: SessionParams) -> None:
         self.b.write(params)
         self._update_enabled()
+        self._update_preset_state()
         self._open_enabled_module_windows()
+        if self.session is not None and self.session.running:
+            self.session.set_params(self.params())
 
     def _open_enabled_module_windows(self) -> None:
         """Loaded settings with opto / PdCO on open their windows, like ticking the box."""
@@ -554,8 +649,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.b.widgets["trial_duration"].setValue(p.baseline_window + p.response_window)
             return  # setValue triggers another change
         self._update_enabled()
-        self.thr_line.setValue(p.lick_threshold)
-        self.live_plots["lick"].setYRange(0, max(p.lick_threshold * 5, 1e-3), padding=0)
+        self._update_preset_state()
+        if p.reward_valve_duration != getattr(self, "_volume_for_ms", None):
+            self._volume_for_ms = p.reward_valve_duration
+            self.refresh_reward_volume()
         if self.session is not None and self.session.running:
             self.session.set_params(p)
 
@@ -617,14 +714,203 @@ class MainWindow(QtWidgets.QMainWindow):
         if which == "opto":
             if self.opto_window is None:
                 self.opto_window = OptoWindow(self, self.rig_config, self.rig_factory)
+                if self._pending_opto is not None:
+                    self.opto_window.set_config(self._pending_opto)
             win = self.opto_window
         else:
             if self.pdco_window is None:
                 self.pdco_window = PdcoWindow(self)
+                if self._pending_pdco is not None:
+                    self.pdco_window.set_config(self._pending_pdco)
             win = self.pdco_window
         win.show()
         win.raise_()
         win.activateWindow()
+
+    def opto_config(self) -> OptoConfig | None:
+        return self.opto_window.config() if self.opto_window else self._pending_opto
+
+    def pdco_config(self) -> PdcoConfig | None:
+        return self.pdco_window.config() if self.pdco_window else self._pending_pdco
+
+    def _open_valve_calibration(self) -> None:
+        if self.valve_window is None:
+            self.valve_window = ValveWindow(self, self.rig_config, self.rig_factory,
+                                            lambda: self.session is not None and self.session.running)
+        else:
+            self.valve_window.load_from_task()
+        self.valve_window.show()
+        self.valve_window.raise_()
+        self.valve_window.activateWindow()
+
+    def refresh_reward_volume(self) -> None:
+        """µL per reward for the current valve opening, from the rig's valve log."""
+        from ..valve_calibration import log_path, read_log, volume_per_opening
+
+        valve_ms = self.params().reward_valve_duration
+        try:
+            ul = volume_per_opening(read_log(log_path(self.rig_config.calibration.directory, self.rig_config.name)), valve_ms)
+        except Exception:
+            ul = None
+        self._volume_per_reward = (ul, True) if ul is not None else (DEFAULT_VOLUME_PER_REWARD_UL, False)
+        if hasattr(self, "valve_volume_label"):
+            self.valve_volume_label.setText(
+                f"Calibrated: {ul:.2f} µL per reward at {valve_ms:g} ms." if ul is not None else
+                f"Not calibrated at {valve_ms:g} ms: reward volumes assume {DEFAULT_VOLUME_PER_REWARD_UL} µL.")
+        if hasattr(self, "tiles"):
+            self.tiles["reward"].label.setText("Reward (µL)" if ul is not None else "Reward (µL, not calibrated)")
+            if self.rows:
+                self._update_performance()
+
+    def _open_calibration(self) -> None:
+        if self.calibration_window is None:
+            self.calibration_window = CalibrationWindow(
+                self, self.rig_config, self.rig_factory, lambda: self.session is not None and self.session.running)
+        else:
+            self.calibration_window.load_from_task()
+        self.calibration_window.show()
+        self.calibration_window.raise_()
+        self.calibration_window.activateWindow()
+
+    # --- presets -----------------------------------------------------------------------------
+    RIG_DEFAULTS = "Rig defaults"
+
+    def _refresh_presets(self) -> None:
+        self.preset_box.blockSignals(True)
+        self.preset_box.clear()
+        self.preset_box.addItem(self.RIG_DEFAULTS)
+        if self.presets is not None:
+            self.preset_box.addItems(self.presets.names())
+        self.preset_box.setCurrentText(self.preset.name if self.preset else self.RIG_DEFAULTS)
+        self.preset_box.blockSignals(False)
+        self._update_preset_state()
+
+    def _update_preset_state(self) -> None:
+        if not hasattr(self, "preset_state"):
+            return
+        p = self.params()
+        if self.preset is None:
+            changed = any(getattr(p, k) != getattr(self._rig_defaults, k) for k in self._rig_defaults.__dataclass_fields__
+                          if k not in ("date", "session_time", "mouse_weight_before", "mouse_weight_after"))
+            self.preset_state.setText("● modified" if changed else "")
+            self.preset_save_btn.setEnabled(False)
+        else:
+            self.preset_state.setText("● modified, not saved" if self.preset.differs_from(p) else "saved")
+            self.preset_save_btn.setEnabled(True)
+        self.delete_preset_action.setEnabled(self.preset is not None)
+
+    def _preset_chosen(self, index: int) -> None:
+        name = self.preset_box.itemText(index)
+        self._select_preset(None if name == self.RIG_DEFAULTS else name)
+
+    def _select_preset(self, name: str | None) -> None:
+        if self.session is not None and self.session.running:
+            QtWidgets.QMessageBox.information(self, "Session running", "Stop the session before switching presets.")
+            self._refresh_presets()
+            return
+        current = self.params()
+        keep = {"behaviour_directory": current.behaviour_directory, "date": current.date}
+        if name is None:
+            self.preset = None
+            params = self._rig_defaults.copy(**keep)
+            self._pending_opto = self._pending_pdco = None
+        else:
+            try:
+                self.preset = self.presets.load(name)
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(self, "Could not load preset", str(exc))
+                self._refresh_presets()
+                return
+            params = self.preset.apply(self._rig_defaults).copy(date=current.date)
+            self._pending_opto, self._pending_pdco = self.preset.opto, self.preset.pdco
+        if self.opto_window is not None:
+            self.opto_window.set_config(self._pending_opto or OptoConfig())
+        if self.pdco_window is not None:
+            self.pdco_window.set_config(self._pending_pdco or PdcoConfig())
+        if self.presets is not None:
+            self.presets.set_last_used(name)
+        self.set_params(params)
+        self._refresh_presets()
+        self.online_text.setText(f"Loaded preset '{name}'" if name else "Rig defaults loaded")
+
+    def _save_preset(self) -> None:
+        if self.presets is None:
+            return
+        if self.preset is None:
+            self._save_preset_as()
+            return
+        self._write_preset(self.preset.name)
+
+    def _save_preset_as(self) -> None:
+        if self.presets is None:
+            return
+        name, ok = QtWidgets.QInputDialog.getText(self, "Save preset", "Preset name (e.g. your name and task):",
+                                                  text=self.preset.name if self.preset else "")
+        if not ok or not name.strip():
+            return
+        try:
+            name = check_name(name)
+        except ValueError as exc:
+            QtWidgets.QMessageBox.warning(self, "Invalid name", str(exc))
+            return
+        if name in self.presets.names() and (self.preset is None or name != self.preset.name):
+            if QtWidgets.QMessageBox.question(self, "Overwrite preset?", f"A preset called '{name}' exists. Replace it?"
+                                              ) != QtWidgets.QMessageBox.Yes:
+                return
+        self._write_preset(name)
+
+    def _write_preset(self, name: str) -> None:
+        try:
+            self.preset = self.presets.save(name, self.params(), opto=self.opto_config(), pdco=self.pdco_config(),
+                                            rig=self.rig_config.name)
+            self.presets.set_last_used(name)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Could not save preset", str(exc))
+            return
+        self._refresh_presets()
+        self.online_text.setText(f"Saved preset '{name}'")
+
+    def _delete_preset(self) -> None:
+        if self.presets is None or self.preset is None:
+            return
+        name = self.preset.name
+        if QtWidgets.QMessageBox.question(self, "Delete preset?", f"Delete the preset '{name}'? Current settings stay as they are."
+                                          ) != QtWidgets.QMessageBox.Yes:
+            return
+        self.presets.delete(name)
+        self.preset = None
+        self._refresh_presets()
+
+    def _export_defaults(self) -> None:
+        ExportDefaultsDialog(self).exec()
+
+    def rig_defaults_changed(self) -> None:
+        """The rig file's defaults were rewritten: make them what 'Rig defaults' restores."""
+        from ..presets import startup_params
+        from ..rig.config import RigConfig
+
+        try:
+            cfg = RigConfig.load(self.rig_config.source)
+        except Exception:
+            return
+        self.rig_config.defaults = cfg.defaults
+        current = self.params()
+        self._rig_defaults, _ = startup_params({"behaviour_directory": current.behaviour_directory, **cfg.defaults}, None)
+        self._update_preset_state()
+
+    def _load_from_session(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load settings from session_config.json",
+                                                        self.b.widgets["behaviour_directory"].text(),
+                                                        "Session config (session_config.json *.json)")
+        if not path:
+            return
+        try:
+            params = load_session_settings(self.params(), path)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Could not read settings", str(exc))
+            return
+        self.set_params(params.copy(date=self.params().date))
+        self.online_text.setText("Loaded settings from a previous session")
 
     # --- buttons ---------------------------------------------------------------------------
     def _browse(self) -> None:
@@ -642,10 +928,10 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Cannot start", "\n".join(problems))
             return
         oc = self.rig_config.opto
-        self.opto_module = OptoModule(self.opto_window.config() if self.opto_window else None,
+        self.opto_module = OptoModule(self.opto_config(),
                                       galvo_step=tuple(oc.galvo_step_v_per_mm), bregma_directory=oc.bregma_directory,
                                       setup_name=self.rig_config.name)
-        modules = [ContextModule(), PdcoModule(self.pdco_window.config() if self.pdco_window else None), self.opto_module]
+        modules = [ContextModule(), PdcoModule(self.pdco_config()), self.opto_module]
         try:
             rig = self.rig_factory()
             if p.opto_session and hasattr(rig, "cfg") and not oc.enabled:
@@ -713,6 +999,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for name in ("mouse_name", "behaviour_directory", "context_flag", "context_table_directory",
                      "ttl_session", "opto_session"):
             self.b.widgets[name].setEnabled(not running)
+        if hasattr(self, "preset_box"):
+            self.preset_box.setEnabled(not running and self.presets is not None)
 
     def _set_status(self, text: str, kind: str) -> None:
         color, icon = theme.STATUS[kind]
@@ -726,7 +1014,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 event.ignore()
                 return
             self._stop()
-        for win in (self.opto_window, self.pdco_window):
+        for win in (self.opto_window, self.pdco_window, self.calibration_window, self.valve_window):
             if win is not None:
                 win.close()
         event.accept()
@@ -814,7 +1102,7 @@ class MainWindow(QtWidgets.QMainWindow):
         n_catch = sum(1 for r in self.rows if not r["association_flag"] and not r["is_stim"])
         self.tiles["fa"].set(f"{pct(perf['fa_rate'])}  ({n_catch})")
         self.tiles["wh"].label.setText("Whisker hit rate" if p.wh_reward else "Whisker hit rate (not rewarded)")
-        vol = compute_reward_volume(self.rows, VOLUME_PER_REWARD_UL)
+        vol = compute_reward_volume(self.rows, self._volume_per_reward[0])
         wh = vol["wh"] if p.wh_reward else 0
         light = vol["light"] if p.light_reward else 0
         self.tiles["reward"].set(f"{vol['aud'] + wh + light:g}")

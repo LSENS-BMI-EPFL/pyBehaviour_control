@@ -31,3 +31,7 @@ packages = ["src/pybehaviour"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # inside pyqtgraph (not our code), NumPy 2.5 deprecation
+    "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning:pyqtgraph",
+]

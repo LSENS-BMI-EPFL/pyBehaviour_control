@@ -43,11 +43,18 @@ To change one of these, change the code *and* the test that pins it, and note it
 | D12 | Opto grids were initialised only if trial 1 was an opto trial (otherwise stale globals from a previous session were used). | Initialised at session start. | Bug fix. |
 | D13 | Laser pulses placed by comparing float times (1-sample jitter between pulses). | Placed in whole samples. | Exact period. |
 | D14 | Galvo V/mm steps hard-coded per computer name; bregma table path hard-coded. | `opto.galvo_step_v_per_mm` and `opto.bregma_directory` in the rig file. | |
+| D15 | Coil calibration used its own pulse (`biphasic_hann_3ms`: second phase 5 samples shorter than the first), unlike the task's whisker pulse. | Calibrates the task's whisker waveform with the GUI duration and scaling factor. | The mT values hold for the pulse the mouse actually gets. |
+| D16 | Calibration `mean_amp_millitesla` was multiplied by the teslameter scale twice (×10 000 instead of ×100). | Scaled once. | Bug fix. |
+| D17 | Calibration peak = max \|teslameter voltage\|, so a sensor offset added to every value. | Offset removed using the baseline before the pulse. | |
+| D18 | One amplitude per run (or the fixed `_psy` list); results copied by hand into the GUI. | Up to five amplitudes per run, fitted mT/V, button to fill the whisker mT column. | |
+| D19 | Calibration settings (paths, mouse, stimulus) edited in the script. | GUI window; channels, scale and folder in the rig file. | |
+| D20 | Valve calibrated by running an association session and stopping it by hand; reward volume in the GUI fixed at 5 µL ("must be calibrated"). | *Tools ▸ Valve calibration*: N openings at a fixed interval, weight entered, µL per opening logged per rig; the GUI uses the measured volume for the current opening time. | |
 
 ## Not ported yet
 
 - **Widefield** (`WF_GUI`, `WF_imaging`, not in the MATLAB repo), including combined opto + widefield. The checkbox is saved in `session_config.json` but does nothing. It fits the module hooks (`modules/__init__.py`).
 - `draw_new_grid.m` (interactive polygon drawing to design new grids).
+- The other calibration pulse shapes in `calibration_coil.m` (biphasic square 1 / 3 ms, 1.6 ms Hann); only the task's whisker pulse is calibrated.
 
 ## Opto grids: please verify against MATLAB
 
@@ -68,7 +75,6 @@ for g = grids
 end
 close all; writetable(T, 'opto_grids.csv');
 ```
-- `calibration_coil.m` (teslameter calibration).
 
 ## Reading files
 

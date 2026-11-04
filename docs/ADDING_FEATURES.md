@@ -17,6 +17,10 @@ src/pybehaviour/
   results.py       results.csv columns + performance numbers
   logger.py        log_continuous.bin + ring buffer for plots
   session.py       folder, files, threads; glue between GUI, Controller and Rig
+  presets.py       named settings presets per rig, start-up order of defaults
+  calibration.py   coil calibration (plan, peak/fit analysis, files, background run)
+  valve_calibration.py  reward valve calibration (N openings, µL log per rig)
+  settings_doc.py  description of every setting; generates docs/SETTINGS.md
   modules/         optional features with hooks (opto.py, pdco.py, context.py)
   rig/             Rig interface, FakeRig (tests/sim), NiRig (hardware), rig.yaml loader
   gui/             Qt windows (main, opto, PdCO), theme.py = colours/fonts; no logic that needs testing
@@ -32,9 +36,13 @@ Data flow per 10 ms tick: `Rig.read_main_chunk` → `Controller.tick` → (maybe
 
 ### A new GUI parameter
 1. Add the field to `SessionParams` with its default (same name as in any old `session_config.json`).
+   Presets and rig `defaults:` pick it up automatically; old presets without it use the default.
 2. Add a widget in `gui/main_window.py` with `self.b.spin("name")` / `check` / `line`.
    `test_every_session_param_has_a_widget` fails until you do.
-3. Use it in the planner / controller and test the behaviour it changes.
+3. Describe it in `settings_doc.ENTRIES` and regenerate the reference:
+   `uv run python -m pybehaviour.settings_doc > docs/SETTINGS.md`.
+   `tests/test_settings_doc.py` fails until you do.
+4. Use it in the planner / controller and test the behaviour it changes.
 
 ### A new stimulus type (e.g. olfactory)
 1. Write `def olfactory_waveform(trial, fs) -> np.ndarray` in `stimuli.py` (empty array when the trial is not olfactory).

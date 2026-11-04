@@ -50,9 +50,56 @@ not code changes.
 - `modules/`: optional features plugged in through hooks (optogenetics, PdCO, context).
   Ticking "Optogenetics" or "PdCO" opens its settings window.
 
+## Presets and rig defaults
+
+Each rig starts from its own defaults, and each person or task can keep a
+named preset, so nobody has to re-enter their settings when the GUI opens.
+
+- **Rig defaults**: a `defaults:` section in the rig file sets starting values
+  for that rig (any name from `session_config.json`, e.g. `lick_threshold: 0.05`).
+- **Presets**: the bar above the settings. *Save as…* stores all current
+  settings (including the opto and PdCO windows) under a name, e.g.
+  "Jules whisker psy". Pick a preset to load it. The last one used opens
+  automatically next time. The bar shows when settings differ from the saved preset.
+  Presets are JSON files in `rigs/presets/<rig name>/` (or `presets_directory`
+  in the rig file), so they can be shared through git.
+- *Settings ▸ Load settings from a previous session…* copies the task settings
+  from any `session_config.json` (MATLAB or Python), without its date or weights.
+
+Order at start-up: rig defaults → last used preset → `--config` file.
+
+**Export from the GUI**: set things up, then *Settings ▸ Export settings as rig
+defaults…* shows the `defaults:` block (only what differs from the built-in
+defaults, or everything), to copy, save to a file, or write straight into the
+rig file (other sections and comments kept, backup `.yaml.bak` made first).
+
+**Setting names** (for `defaults:` and presets) are listed in
+[docs/SETTINGS.md](docs/SETTINGS.md); in the GUI, hovering a field shows its name.
+
+## Coil calibration
+
+*Tools ▸ Coil calibration* (or *Calibrate coil…* in the whisker settings)
+plays the task's whisker pulse at up to five amplitudes, records the
+teslameter, and fits the field per volt. Results go to
+`<calibration folder>/<mouse>/<mouse>_<date>/` (`.mat` with the MATLAB
+variable names, plus CSV and JSON). *Use for whisker amplitudes* fills the
+"Amplitude (mT)" column. Channels and teslameter scale are in the rig file's
+`calibration:` section.
+
+## Valve calibration
+
+*Tools ▸ Valve calibration* (or *Calibrate valve…* in the Reward tab) opens
+the reward valve N times (default 50) at a fixed interval. Put a tared tube
+under the spout, run, weigh the water, and save the weight: the window shows
+µL per opening and keeps a log per rig
+(`<calibration folder>/valve/<rig>_valve_calibration.csv`). The main window
+then reports reward volumes from that measurement, and with two or more
+opening times the window suggests the opening for a target volume. No more
+association session to calibrate the valve.
+
 ## Using the GUI
 
-Settings are on the left (tabs), live signals and performance in the centre,
+Settings are on the left (preset bar and tabs), live signals and performance in the centre,
 session summary on the right. Changes apply from the next trial.
 Keyboard: **F5** start, **F6** pause, **F7** resume, **F8** manual reward,
 **Ctrl+.** stop. Series colours are colour-blind safe and every line is also

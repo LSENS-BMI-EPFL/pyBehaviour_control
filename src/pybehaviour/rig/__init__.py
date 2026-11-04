@@ -59,6 +59,14 @@ class Rig(Protocol):
     def play_opto_now(self, out: np.ndarray) -> None:
         """Play (n, 3) immediately, without trigger (calibration). Works without open()."""
 
+    # valve calibration (outside sessions)
+    def valve_open(self, valve_ms: float) -> None:
+        """Open the reward valve once for ``valve_ms`` (hardware-timed) and wait until closed."""
+
+    # coil calibration (outside sessions)
+    def calibration_trial(self, stim: np.ndarray) -> np.ndarray:
+        """Play ``stim`` on the coil output and return the teslameter input (V), same length."""
+
     # triggers and static lines
     def reset_triggers(self) -> None: ...
     def set_ttl(self, ch1: bool, ch2: bool) -> None: ...

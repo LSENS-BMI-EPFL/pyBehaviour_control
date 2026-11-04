@@ -39,8 +39,13 @@ refuses to start and says why.
 | PdCO | TTL lines with each design | Same pulses as the TTL GUI preview |
 | Opto laser | Laser command vs trial TTL | Starts at the opto baseline after the trigger; -1 V when off; same shape as the preview |
 | Opto galvos | Galvo x/y on a grid session | Voltage = bregma + mm × V/mm step from the rig file; parked off-brain (AP -5, ML 5) on non-opto trials |
+| Valve calibration | Tools ▸ Valve calibration, 50 openings, weigh | Same µL per opening as the MATLAB association-session method at the same opening time |
+| Coil calibration | Tools ▸ Coil calibration with the teslameter, compare with a MATLAB calibration of the same coil | Same mT for the same pulse (expect small differences: MATLAB's calibration pulse was slightly different, see PARITY D15) |
 | Opto calibration | "Assign bregma" → "Test: one pulse train now", then "Set bregma here" | Beam lands where expected; `mouse_bregma.csv` updated |
 | Stop | Stop mid-trial | All outputs go to 0 V / low |
+
+Check the `calibration:` section: the teslameter input (`Dev2/ai6` by default) is
+also logged as PdCO TTL ch1 during sessions, so it must be re-wired or changed for calibration.
 
 Set `opto.enabled: true`, the galvo step and the bregma folder in the rig file
 on opto rigs, and export the grids from MATLAB once (see PARITY.md, "Opto grids").

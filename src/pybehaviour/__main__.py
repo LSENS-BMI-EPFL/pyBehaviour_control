@@ -10,7 +10,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from .params import SessionParams
 
 
 def main(argv=None) -> int:
@@ -26,9 +25,9 @@ def main(argv=None) -> int:
 
     from .gui import theme
     from .gui.main_window import MainWindow
+    from .presets import PresetStore, startup_params
     from .rig.config import RigConfig
 
-    defaults = SessionParams.load_config(args.config) if args.config else SessionParams()
     if args.sim:
         from .rig.fake import FakeRig, RandomLicker
 
@@ -39,6 +38,8 @@ def main(argv=None) -> int:
         data_dir = args.data_dir or Path.home() / "pybehaviour_sim_data"
         cfg = RigConfig(name="simulation")
         cfg.opto.bregma_directory = str(data_dir / "opto")
+        cfg.calibration.directory = str(data_dir / "calibration")
+        cfg.presets_directory = str(data_dir / "presets")
     else:
         from .rig.ni import NiRig
 
@@ -50,11 +51,18 @@ def main(argv=None) -> int:
         title = f"[{cfg.name}]"
         data_dir = args.data_dir or Path(cfg.behaviour_directory)
 
-    defaults = defaults.copy(behaviour_directory=str(data_dir))
+    store = PresetStore(cfg.presets_path())
+    rig_defaults = {"behaviour_directory": str(data_dir), **cfg.defaults}
+    # rig file defaults → last used preset → --config file (later wins)
+    defaults, preset = startup_params(rig_defaults, store, args.config)
+    base, _ = startup_params(rig_defaults, None)
+    if args.data_dir:
+        defaults = defaults.copy(behaviour_directory=str(args.data_dir))
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("LSENS behaviour control")
     theme.apply_app_style(app)
-    win = MainWindow(rig_factory, defaults, title, rig_config=cfg)
+    win = MainWindow(rig_factory, defaults, title, rig_config=cfg, presets=store, preset=preset,
+                     rig_defaults=base)
     win.resize(1800, 1050)
     win.show()
     return app.exec()
