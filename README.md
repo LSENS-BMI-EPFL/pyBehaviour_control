@@ -9,18 +9,13 @@ Output files are compatible with the MATLAB version: `results.csv`,
 `session_config.json` and `log_continuous.bin` have the same names, columns
 and binary format, so analysis code does not change.
 
-**Status:** core task, GUI, optogenetics, PdCO and context are ported and
-tested without hardware. Not yet validated on a rig (see
-[docs/RIG_VALIDATION.md](docs/RIG_VALIDATION.md)). Widefield is not ported yet.
-Differences from MATLAB: [PARITY.md](PARITY.md).
-
 ## Install
 
 Needs [uv](https://docs.astral.sh/uv/).
 
 ```
 uv sync                     # the NI-DAQmx driver is only needed on rig PCs
-uv run pytest               # ~15 s, no hardware needed
+uv run pytest               # under a minute, no hardware needed
 ```
 
 ## Run
