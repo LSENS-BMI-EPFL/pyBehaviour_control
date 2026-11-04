@@ -30,7 +30,7 @@ def test_session_writes_all_files_and_stops_cleanly(tmp_path):
     s.stop()
 
     assert s.folder.parent == tmp_path / "TEST01"
-    cfg = json.loads((s.folder / "session_config.json").read_text())
+    cfg = json.loads((s.folder / "session_config.json").read_text(encoding="utf-8"))
     assert cfg["mouse_name"] == "TEST01"
     df = pd.read_csv(s.folder / "results.csv")
     assert len(df) >= 2
@@ -86,7 +86,7 @@ def test_rig_config_loads_example_and_lists_devices():
 
 
 def test_rig_config_rejects_typos(tmp_path):
-    (tmp_path / "rig.yaml").write_text("stim:\n  trigerr: /Dev3/PFI0\n")
+    (tmp_path / "rig.yaml").write_text("stim:\n  trigerr: /Dev3/PFI0\n", encoding="utf-8")
     try:
         RigConfig.load(tmp_path / "rig.yaml")
     except ValueError as e:

@@ -225,7 +225,7 @@ def test_load_settings_from_previous_session(app, tmp_path, monkeypatch):
     import json
 
     cfg = tmp_path / "session_config.json"
-    cfg.write_text(json.dumps({"response_window": 777, "mouse_weight_before": 22}))
+    cfg.write_text(json.dumps({"response_window": 777, "mouse_weight_before": 22}), encoding="utf-8")
     monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(cfg), ""))
     w = make_window(tmp_path, tmp_path / "presets")
     w._load_from_session()
@@ -334,7 +334,7 @@ def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
     from pybehaviour.gui.export_dialog import ExportDefaultsDialog
 
     rig = tmp_path / "rig3.yaml"
-    rig.write_text("name: rigA  # bench\ndefaults:\n  lick_threshold: 0.05\n")
+    rig.write_text("name: rigA  # bench\ndefaults:\n  lick_threshold: 0.05\n", encoding="utf-8")
     w = make_window(tmp_path, tmp_path / "presets")
     w.rig_config.source = str(rig)
     w.b.widgets["min_iti"].setValue(4321)
@@ -348,12 +348,12 @@ def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
     dlg.changed_only.setChecked(True)
 
     dlg.save_to_file(str(tmp_path / "exported.yaml"))
-    assert yaml.safe_load((tmp_path / "exported.yaml").read_text())["defaults"]["min_iti"] == 4321
+    assert yaml.safe_load((tmp_path / "exported.yaml").read_text(encoding="utf-8"))["defaults"]["min_iti"] == 4321
 
     monkeypatch.setattr(QtWidgets.QMessageBox, "question", lambda *a, **k: QtWidgets.QMessageBox.Yes)
     dlg.write_rig_file()
-    data = yaml.safe_load(rig.read_text())
-    assert data["defaults"]["min_iti"] == 4321 and "# bench" in rig.read_text()
+    data = yaml.safe_load(rig.read_text(encoding="utf-8"))
+    assert data["defaults"]["min_iti"] == 4321 and "# bench" in rig.read_text(encoding="utf-8")
     assert (tmp_path / "rig3.yaml.bak").exists()
     # "Rig defaults" now restores the exported values
     w.b.widgets["min_iti"].setValue(1000)

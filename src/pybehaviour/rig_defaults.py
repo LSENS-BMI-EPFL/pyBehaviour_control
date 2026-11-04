@@ -85,7 +85,7 @@ def write_rig_defaults(rig_file: Path, params: SessionParams, changed_only: bool
     from .rig.config import RigConfig
 
     rig_file = Path(rig_file)
-    old = rig_file.read_text()
+    old = rig_file.read_text(encoding="utf-8")
     expected = defaults_dict(params, changed_only)
     new = replace_defaults_block(old, defaults_yaml(params, changed_only))
     check = yaml.safe_load(new) or {}
@@ -94,7 +94,7 @@ def write_rig_defaults(rig_file: Path, params: SessionParams, changed_only: bool
     backup = rig_file.with_suffix(rig_file.suffix + ".bak")
     shutil.copy2(rig_file, backup)
     tmp = rig_file.with_suffix(rig_file.suffix + ".tmp")
-    tmp.write_text(new)
+    tmp.write_text(new, encoding="utf-8")
     try:
         RigConfig.load(tmp)  # the whole file must still be a valid rig file
     except Exception:

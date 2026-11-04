@@ -61,7 +61,7 @@ class ResultsWriter:
 
     def append(self, row: dict) -> None:
         new_file = not self.path.exists() or self.path.stat().st_size == 0
-        with self.path.open("a", newline="") as f:
+        with self.path.open("a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if new_file:
                 w.writerow(RESULT_COLUMNS)

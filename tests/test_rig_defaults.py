@@ -65,17 +65,17 @@ def test_replace_adds_or_rewrites_block(text):
 
 def test_write_rig_defaults_in_place_with_backup(tmp_path):
     rig = tmp_path / "rig3.yaml"
-    rig.write_text(RIG)
+    rig.write_text(RIG, encoding="utf-8")
     backup = write_rig_defaults(rig, PARAMS)
-    assert backup.read_text() == RIG
+    assert backup.read_text(encoding="utf-8") == RIG
     cfg = RigConfig.load(rig)
     assert cfg.defaults == defaults_dict(PARAMS) and cfg.stim.rate == 100000
-    assert "# bench 3" in rig.read_text()
+    assert "# bench 3" in rig.read_text(encoding="utf-8")
 
 
 def test_write_refuses_broken_rig_file(tmp_path):
     rig = tmp_path / "rig.yaml"
-    rig.write_text("stim:\n  trigerr: x\n")  # already invalid
+    rig.write_text("stim:\n  trigerr: x\n", encoding="utf-8")  # already invalid
     with pytest.raises(ValueError):
         write_rig_defaults(rig, PARAMS)
-    assert rig.read_text() == "stim:\n  trigerr: x\n"  # untouched
+    assert rig.read_text(encoding="utf-8") == "stim:\n  trigerr: x\n"  # untouched

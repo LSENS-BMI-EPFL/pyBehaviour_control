@@ -1,6 +1,8 @@
 # Adding features
 
 Rule of thumb: **every change ships with a test that runs without hardware**
+(and **always pass `encoding="utf-8"`** when reading or writing text files: Windows
+rig PCs otherwise use cp1252; CI fails on any file opened without it)
 (`uv run pytest`, a few seconds). Logic that needs a test lives outside the GUI
 and outside `rig/ni.py`.
 
@@ -40,7 +42,7 @@ Data flow per 10 ms tick: `Rig.read_main_chunk` → `Controller.tick` → (maybe
 2. Add a widget in `gui/main_window.py` with `self.b.spin("name")` / `check` / `line`.
    `test_every_session_param_has_a_widget` fails until you do.
 3. Describe it in `settings_doc.ENTRIES` and regenerate the reference:
-   `uv run python -m pybehaviour.settings_doc > docs/SETTINGS.md`.
+   `uv run python -m pybehaviour.settings_doc`.
    `tests/test_settings_doc.py` fails until you do.
 4. Use it in the planner / controller and test the behaviour it changes.
 

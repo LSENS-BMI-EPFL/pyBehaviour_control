@@ -24,7 +24,7 @@ def test_loads_matlab_config_with_extra_keys_and_types(tmp_path):
         "wh_stim_amp_1": 3, "PauseRequested": False, "session_time": "101010",
     }
     path = tmp_path / "session_config.json"
-    path.write_text(json.dumps(matlab_json))
+    path.write_text(json.dumps(matlab_json), encoding="utf-8")
     p = SessionParams.load_config(path)
     assert p.mouse_name == "MP001"
     assert p.association_flag is True

@@ -176,7 +176,7 @@ def test_session_arms_laser_and_galvos_every_trial(tmp_path):
             assert (r["volt_x"], r["volt_y"]) == pytest.approx(galvo_voltages(r["coord_AP"], r["coord_ML"], (0.1, -0.1), (0.5, -0.3)))
         else:
             assert (r["opto_amp"], r["coord_AP"], r["coord_ML"]) == (-1, PARK_AP, PARK_ML)
-    cfg = json.loads((tmp_path / "opto_config.json").read_text())
+    cfg = json.loads((tmp_path / "opto_config.json").read_text(encoding="utf-8"))
     assert cfg["grid"] == "Grid 4" and len(cfg["grid_AP"]) == 45 and cfg["bregma_x"] == 0.1
 
 

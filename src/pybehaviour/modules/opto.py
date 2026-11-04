@@ -379,7 +379,7 @@ class OptoModule(Module):
         info = self.config.opto_info(self.setup_name)
         info.update(bregma_x=self.bregma[0], bregma_y=self.bregma[1], galvo_step=list(self.galvo_step),
                     grid_AP=ap.tolist(), grid_ML=ml.tolist())
-        (ctx.folder / "opto_config.json").write_text(json.dumps(info, indent=2))
+        (ctx.folder / "opto_config.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
         if self.bregma == (0.0, 0.0):
             ctx.status(f"Opto: no bregma calibration found for {ctx.params.mouse_name}; using 0 V")
 
@@ -424,7 +424,7 @@ class OptoModule(Module):
         }
         path = self.folder / "results_opto.csv"
         new = not path.exists()
-        with path.open("a", newline="") as f:
+        with path.open("a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             if new:
                 w.writerow(OPTO_COLUMNS)

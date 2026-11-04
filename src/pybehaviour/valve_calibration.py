@@ -70,7 +70,7 @@ def log_path(directory: Path | str, rig: str) -> Path:
 def append_log(path: Path, m: ValveMeasurement) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     new = not path.exists()
-    with path.open("a", newline="") as f:
+    with path.open("a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=LOG_COLUMNS)
         if new:
             w.writeheader()
@@ -80,7 +80,7 @@ def append_log(path: Path, m: ValveMeasurement) -> None:
 def read_log(path: Path) -> list[dict]:
     if not Path(path).exists():
         return []
-    with Path(path).open(newline="") as f:
+    with Path(path).open(newline="", encoding="utf-8") as f:
         rows = []
         for r in csv.DictReader(f):
             for k in ("valve_ms", "interval_s", "total_weight_mg", "ul_per_opening"):

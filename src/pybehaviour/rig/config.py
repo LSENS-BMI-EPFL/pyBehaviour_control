@@ -114,7 +114,7 @@ class RigConfig:
 
     @classmethod
     def load(cls, path: Path) -> "RigConfig":
-        data = yaml.safe_load(Path(path).read_text()) or {}
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
         cfg = _build(cls, data)
         cfg.source = str(Path(path).resolve())
         from ..params import PARAM_FIELDS

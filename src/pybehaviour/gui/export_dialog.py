@@ -76,7 +76,7 @@ class ExportDefaultsDialog(QtWidgets.QDialog):
             path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save defaults", start, "YAML (*.yaml *.yml)")
             if not path:
                 return
-        Path(path).write_text("# Paste into a rig file (replaces its defaults: section)\n" + self.text())
+        Path(path).write_text("# Paste into a rig file (replaces its defaults: section)\n" + self.text(), encoding="utf-8")
         self.status.setText(f"Saved {path}")
 
     def write_rig_file(self) -> None:

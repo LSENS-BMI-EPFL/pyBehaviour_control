@@ -74,9 +74,9 @@ def test_saved_files(tmp_path):
     assert mat["trials_stim_amp_volt"].ravel().tolist() == [1, 1, 2, 2]
     # fixed: mean of the per-trial peaks, scaled once (MATLAB scaled by 100 twice)
     assert mat["mean_amp_millitesla"].item() == pytest.approx(15, rel=1e-3)
-    summary = json.loads(paths["json"].read_text())
+    summary = json.loads(paths["json"].read_text(encoding="utf-8"))
     assert summary["fit"]["mT_per_V"] == pytest.approx(10, rel=1e-3)
-    assert paths["csv"].read_text().splitlines()[0] == "trial,amplitude_V,peak_mT"
+    assert paths["csv"].read_text(encoding="utf-8").splitlines()[0] == "trial,amplitude_V,peak_mT"
 
 
 def test_run_on_fake_rig():

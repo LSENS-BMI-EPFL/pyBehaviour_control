@@ -196,7 +196,7 @@ class SessionParams:
         return {k: v for k, v in dataclasses.asdict(self).items() if "directory" not in k}
 
     def save_config(self, path: Path) -> None:
-        Path(path).write_text(json.dumps(self.to_config_dict(), indent=2))
+        Path(path).write_text(json.dumps(self.to_config_dict(), indent=2), encoding="utf-8")
 
     @classmethod
     def from_dict(cls, data: dict) -> "SessionParams":
@@ -210,7 +210,7 @@ class SessionParams:
 
     @classmethod
     def load_config(cls, path: Path) -> "SessionParams":
-        return cls.from_dict(json.loads(Path(path).read_text()))
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
 def _coerce(value, type_name: str):

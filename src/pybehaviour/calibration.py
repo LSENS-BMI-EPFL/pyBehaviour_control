@@ -141,7 +141,7 @@ def save_result(result: CalibrationResult, folder: Path, mouse: str, date: str) 
         "stim_duration_up": n_half, "stim_duration_down": n_half,
         "scale_factor": plan.scaling_factor, "session_sampling_rate": plan.rate,
     })
-    with paths["csv"].open("w", newline="") as f:
+    with paths["csv"].open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["trial", "amplitude_V", "peak_mT"])
         for i, (a, p) in enumerate(zip(result.trial_amps, peaks), 1):
@@ -149,7 +149,7 @@ def save_result(result: CalibrationResult, folder: Path, mouse: str, date: str) 
     paths["json"].write_text(json.dumps({
         "mouse": mouse, "date": date, "plan": asdict(plan), "teslameter_mT_per_V": result.mT_per_volt_sensor,
         "summary": result.summary(), "fit": result.fit(),
-    }, indent=2))
+    }, indent=2), encoding="utf-8")
     return paths
 
 

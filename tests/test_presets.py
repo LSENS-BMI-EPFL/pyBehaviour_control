@@ -26,12 +26,12 @@ def test_save_and_load_roundtrip(tmp_path):
 def test_session_specific_fields_are_not_stored(tmp_path):
     store = PresetStore(tmp_path)
     store.save("a", SessionParams(date="20260101", session_time="101010", mouse_weight_before=21.5))
-    data = json.loads((tmp_path / "a.json").read_text())["params"]
+    data = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))["params"]
     assert not {"date", "session_time", "mouse_weight_before", "mouse_weight_after"} & set(data)
 
 
 def test_old_preset_missing_new_fields_falls_back_to_base(tmp_path):
-    (tmp_path / "old.json").write_text(json.dumps({"params": {"min_iti": 1234, "removed_field": 1}}))
+    (tmp_path / "old.json").write_text(json.dumps({"params": {"min_iti": 1234, "removed_field": 1}}), encoding="utf-8")
     p = PresetStore(tmp_path).load("old")
     out = p.apply(SessionParams(max_iti=9999))
     assert (out.min_iti, out.max_iti) == (1234, 9999)
@@ -67,7 +67,7 @@ def test_startup_order_rig_defaults_then_preset_then_config(tmp_path):
     store.save("mine", SessionParams(min_iti=2000, lick_threshold=0.08))
     store.set_last_used("mine")
     cfg = tmp_path / "session_config.json"
-    cfg.write_text(json.dumps({"lick_threshold": 0.2, "mouse_weight_before": 25, "date": "19990101"}))
+    cfg.write_text(json.dumps({"lick_threshold": 0.2, "mouse_weight_before": 25, "date": "19990101"}), encoding="utf-8")
 
     params, preset = startup_params({"min_iti": 5000, "max_iti": 7000, "no_stim_weight": 3}, None)
     assert (params.min_iti, params.max_iti, params.no_stim_weight) == (5000, 7000, 3) and preset is None
@@ -83,7 +83,7 @@ def test_startup_order_rig_defaults_then_preset_then_config(tmp_path):
 
 def test_load_session_settings_ignores_session_fields(tmp_path):
     cfg = tmp_path / "session_config.json"
-    cfg.write_text(json.dumps({"min_iti": 1111, "mouse_weight_after": 30, "session_time": "121212"}))
+    cfg.write_text(json.dumps({"min_iti": 1111, "mouse_weight_after": 30, "session_time": "121212"}), encoding="utf-8")
     p = load_session_settings(SessionParams(), cfg)
     assert p.min_iti == 1111 and p.mouse_weight_after == 0 and p.session_time == ""
 
@@ -92,16 +92,16 @@ def test_load_session_settings_ignores_session_fields(tmp_path):
 
 def test_rig_defaults_and_presets_folder(tmp_path):
     rig = tmp_path / "rig.yaml"
-    rig.write_text("name: rigA\ndefaults:\n  lick_threshold: 0.05\n  aud_reward: false\n")
+    rig.write_text("name: rigA\ndefaults:\n  lick_threshold: 0.05\n  aud_reward: false\n", encoding="utf-8")
     cfg = RigConfig.load(rig)
     assert cfg.defaults == {"lick_threshold": 0.05, "aud_reward": False}
     assert cfg.presets_path() == tmp_path / "presets" / "rigA"
-    rig.write_text("name: rigA\npresets_directory: shared/presets\n")
+    rig.write_text("name: rigA\npresets_directory: shared/presets\n", encoding="utf-8")
     assert RigConfig.load(rig).presets_path() == tmp_path / "shared" / "presets"
 
 
 def test_rig_defaults_typo_is_an_error(tmp_path):
     rig = tmp_path / "rig.yaml"
-    rig.write_text("defaults:\n  lick_treshold: 0.05\n")
+    rig.write_text("defaults:\n  lick_treshold: 0.05\n", encoding="utf-8")
     with pytest.raises(ValueError, match="lick_treshold"):
         RigConfig.load(rig)

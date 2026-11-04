@@ -18,5 +18,6 @@ def test_every_setting_is_documented_once():
 
 
 def test_settings_page_is_up_to_date():
-    assert PAGE.read_text() == render_markdown(), (
-        "docs/SETTINGS.md is out of date: run `uv run python -m pybehaviour.settings_doc > docs/SETTINGS.md`")
+    # explicit UTF-8 (Windows default is cp1252); text mode also accepts a CRLF checkout on Windows
+    assert PAGE.read_text(encoding="utf-8") == render_markdown(), (
+        "docs/SETTINGS.md is out of date: run `uv run python -m pybehaviour.settings_doc`")

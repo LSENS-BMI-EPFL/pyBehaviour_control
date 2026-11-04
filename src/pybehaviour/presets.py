@@ -104,7 +104,7 @@ class PresetStore:
         return sorted((p.stem for p in self.directory.glob("*.json")), key=str.lower)
 
     def load(self, name: str) -> Preset:
-        data = json.loads(self._path(name).read_text())
+        data = json.loads(self._path(name).read_text(encoding="utf-8"))
         return Preset(name=name, params=data.get("params", {}), opto=opto_from_dict(data.get("opto")),
                       pdco=pdco_from_dict(data.get("pdco")), rig=data.get("rig", ""), saved=data.get("saved", ""))
 
@@ -117,7 +117,7 @@ class PresetStore:
         data = {"params": preset.params, "opto": opto_to_dict(opto), "pdco": pdco_to_dict(pdco),
                 "rig": rig, "saved": preset.saved}
         tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(data, indent=2))
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         tmp.replace(path)  # never leave a half-written preset
         return preset
 
@@ -130,7 +130,7 @@ class PresetStore:
         path = self.directory / LAST_USED_FILE
         if not path.exists():
             return None
-        name = path.read_text().strip()
+        name = path.read_text(encoding="utf-8").strip()
         return name if name in self.names() else None
 
     def set_last_used(self, name: str | None) -> None:
@@ -139,7 +139,7 @@ class PresetStore:
             path.unlink(missing_ok=True)
             return
         self.directory.mkdir(parents=True, exist_ok=True)
-        path.write_text(check_name(name))
+        path.write_text(check_name(name), encoding="utf-8")
 
 
 def startup_params(rig_defaults: dict, store: PresetStore | None, config_file: Path | None = None
@@ -160,6 +160,6 @@ def load_session_settings(base: SessionParams, config_file: Path | str) -> Sessi
 
     Date, time and weights of that session are not copied.
     """
-    data = json.loads(Path(config_file).read_text())
+    data = json.loads(Path(config_file).read_text(encoding="utf-8"))
     data = {k: v for k, v in data.items() if k not in SESSION_ONLY}
     return SessionParams.from_dict(dataclasses.asdict(base) | data)
