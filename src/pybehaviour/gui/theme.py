@@ -66,6 +66,10 @@ def apply_app_style(app: QtWidgets.QApplication) -> None:
         pal.setColor(QtGui.QPalette.Disabled, role, QtGui.QColor("#9a988f"))
     app.setPalette(pal)
     app.setStyleSheet(STYLESHEET)
+    from . import no_wheel
+
+    if not any(isinstance(c, no_wheel.NoWheelOnValues) for c in app.children()):
+        no_wheel.install(app)  # the mouse wheel never changes settings
     pg.setConfigOptions(antialias=True, background=SURFACE, foreground=TEXT_2)
 
 

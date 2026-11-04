@@ -361,3 +361,42 @@ def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
     assert w.params().min_iti == 4321
     for x in (dlg, w):
         x.close()
+
+
+# --- mouse wheel ------------------------------------------------------------------------
+
+def _wheel(widget, steps=-3):
+    from PySide6 import QtCore
+
+    pos = QtCore.QPointF(widget.rect().center())
+    ev = QtGui.QWheelEvent(pos, QtCore.QPointF(widget.mapToGlobal(pos.toPoint())), QtCore.QPoint(0, 0),
+                           QtCore.QPoint(0, 120 * steps), QtCore.Qt.NoButton, QtCore.Qt.NoModifier,
+                           QtCore.Qt.NoScrollPhase, False)
+    QtWidgets.QApplication.sendEvent(widget, ev)
+
+
+def test_mouse_wheel_does_not_change_settings(app, window):
+    window.show()
+    window.settings_tabs.setCurrentIndex(2)  # Stimuli: long enough to scroll
+    app.processEvents()
+    spin = window.b.widgets["wh_stim_duration"]
+    combo = window.b.widgets["behaviour_type"]
+    before = (spin.value(), combo.currentText())
+    spin.setFocus()  # even with focus
+    _wheel(spin)
+    _wheel(spin.lineEdit())
+    _wheel(combo)
+    assert (spin.value(), combo.currentText()) == before
+    area = window.settings_tabs.currentWidget()
+    assert area.verticalScrollBar().value() > 0  # the wheel scrolled the panel instead
+
+
+def test_keyboard_still_changes_values(app, window):
+    from PySide6 import QtCore
+    from PySide6.QtTest import QTest
+
+    spin = window.b.widgets["min_iti"]
+    spin.setFocus()
+    v = spin.value()
+    QTest.keyClick(spin, QtCore.Qt.Key_Up)
+    assert spin.value() == v + spin.singleStep()
