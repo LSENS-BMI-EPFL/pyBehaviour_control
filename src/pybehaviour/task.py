@@ -176,11 +176,18 @@ class Controller:
         self.events("next_trial", trial)
 
     def _maybe_start(self, t: float) -> None:
+        if self._ready_to_start(t):
+            self._start_trial()
+
+    def _ready_to_start(self, t: float) -> bool:
+        """ITI elapsed since the last trial and no lick for the quiet window."""
         tr = self.trial
         iti_ok = t - self.trial_end > tr.iti / 1000 + tr.extra_time
         quiet_ok = t - self.last_lick > tr.quiet_window / 1000
-        if not (iti_ok and quiet_ok):
-            return
+        return iti_ok and quiet_ok
+
+    def _start_trial(self) -> None:
+        tr = self.trial
         self._status("Trial Started (Passive)" if tr.is_passive else "Trial Started")
         self.trial_start = self.rig.trigger_stim()
         self.free_reward_pending = tr.gives_free_reward

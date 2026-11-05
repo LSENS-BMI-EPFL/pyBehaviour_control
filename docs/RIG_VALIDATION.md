@@ -25,6 +25,12 @@ file exists (it lists the devices it found if not), and pulses the stimulus
 trigger to check it reaches the logged `trial_ttl` input. If either fails, it
 refuses to start and says why.
 
+If the loopback check fails on a rig whose two boards are the same model,
+check that `Dev1` and `Dev2` are not swapped: Windows numbers identical boards
+in detection order, which can change with a new PC. Rename them in NI MAX
+(Dev1 → DevTmp, Dev2 → Dev1, DevTmp → Dev2) rather than editing the rig file,
+so the MATLAB code keeps working too.
+
 ## 3. Bench checks (oscilloscope or the log file)
 
 | Check | How | Expected |
@@ -60,9 +66,37 @@ Copy a few MATLAB session folders (with `session_config.json`, `results.csv`,
 uv run pybehaviour-replay path/to/MP001_20260101_101010
 ```
 It prints, for each trial, the MATLAB and Python outcome and the trial start
-time difference. Expect all outcomes to match except where `PARITY.md`
-explains a difference (D1–D3 can move a lick that sits within ~10 ms of a
-window edge). To keep a session as a regression test, copy it to
+time difference. Each trial starts at its recorded start (the trial TTL edge),
+so every trial is judged on the same stretch of lick trace as in the recording
+and one disagreement cannot shift the rest of the session. Trials Python would
+not have started yet at that moment (ITI not elapsed, lick in the quiet window)
+are flagged in `python_would_wait`. Expect all outcomes to match except where
+`PARITY.md` explains a difference (D1–D3 can move a lick that sits within ~10 ms
+of a window edge). The log layout is detected: 10 channels since 2026, 6 in
+sessions from the older MATLAB version (`--channels` overrides).
+
+The replay can only use the lick signal in `log_continuous.bin` (`log_input`,
+channel `lick`). If the rig decides on licks from a different input
+(`main_input`, e.g. `Dev1/ai0` while the log has `Dev2/ai0`), the two signals
+differ in noise, and licks close to the threshold can be judged differently.
+Check the trials that do not match: if the logged lick trace there is near the
+threshold, the difference comes from the two inputs, not from the task logic.
+
+The replay uses the lick threshold from `session_config.json` for every trial:
+`results.csv` does not record it (neither does MATLAB). If the threshold was
+changed during the session, trials after the change are replayed with the wrong
+threshold. To separate those from real differences, also try the thresholds you
+may have used:
+
+```
+uv run pybehaviour-replay path/to/MP001_20260101_101010 --thresholds 0.03,0.04,0.05,0.06,0.08
+```
+Only mismatching trials are listed. Each gets a verdict: **threshold** when one
+of the listed thresholds reproduces the recorded outcome (the threshold was
+probably changed), **unexplained** when none does. Unexplained trials are the
+ones to look at: they point to a difference in the task logic or between the
+logged and the live lick input (see above). The command exits with an error
+only if some trials are unexplained. To keep a session as a regression test, copy it to
 `tests/data/matlab_sessions/<name>/`; `test_matlab_session_replays` then runs it
 on every `pytest`.
 
@@ -71,3 +105,22 @@ on every `pytest`.
 Run a few real sessions with the Python version and compare hit rates, trial
 counts per hour and reaction times with recent MATLAB sessions of the same
 mice before switching over.
+
+## Validated rigs
+
+Update this table as checks pass on each rig.
+
+### SV-07-054 (Windows 11, 2 × PCIe-6343, NI-DAQmx 21.3)
+
+| Step | Status | Notes |
+|------|--------|-------|
+| 1. Install, `pytest` on the rig PC | Done 2026-11-04 | Python 3.12 |
+| 2. Rig file, device check, trigger loopback | Done 2026-11-03 | `rigs/SV-07-054.yaml`; Dev1/Dev2 had to be swapped in NI MAX |
+| Detection session, no mouse | Done 2026-11-03 | Whisker, auditory and catch trials; no valve opening on misses |
+| Auditory sessions with a mouse | Done 2026-11-04 | JL015, 3 sessions, 40 min, 232 trials: licks detected, 54 rewarded auditory hits (median reaction time 0.30–0.39 s), 5 false alarms; one trial TTL edge per saved trial, within 26 ms of `trial_time` |
+| Sound calibration output | Done 2026-11-04 | Tones play at the set interval; levels not yet measured with a dB meter |
+| Early lick | To do | Those sessions had `baseline_window` 0, so there was no early-lick window |
+| Other bench checks (section 3) | To do | Whisker trials with a mouse, valve opening time on a scope, manual reward, stop, stimulus shapes, camera, PdCO, opto, coil and valve calibration |
+| 4. Replay MATLAB sessions | Done 2026-11-05 (21 sessions) | JL016_20261103_131240 (MATLAB v2, auditory, 497 trials): 494/497 match; the 3 others have no clear lick on the logged `Dev2/ai0` where MATLAB's `Dev1/ai0` saw one. 20 sessions from the older MATLAB (`C:\behavior_control`, 2025, JL002–JL014: 6 auditory, 3 whisker, 11 whisker-context, 9929 trials): 9508 (95.8%) match at the configured threshold, 409 (4.1%) at another threshold (threshold changed during the session, or the logged lick signal weaker/stronger than the live one), 12 (0.12%) unexplained. Every mismatch is a lick / no-lick disagreement; none is a different outcome for the same licks. Trial starts within 5 ms (95th percentile) |
+| Replay Python sessions | Done 2026-11-04 (1 session) | JL015_20261104_104926: 61/61 match when replayed at 0.05 V (the config says 0.03 V: the threshold was raised during the session). The other two JL015 sessions also had the threshold changed during the session, at times not recorded, so they cannot be replayed with one threshold |
+| 5. Side by side | To do | |
