@@ -21,15 +21,35 @@ uv run pytest               # under a minute, no hardware needed
 ## Run
 
 ```
+uv run pybehaviour                               # the rig file and preset used last time
+uv run pybehaviour --rig rigs/my_rig.yaml        # this rig file (remembered for next time)
 uv run pybehaviour --sim                         # no hardware, simulated mouse
-uv run pybehaviour --rig rigs/example_rig.yaml   # NI hardware
 uv run pybehaviour --rig rigs/my_rig.yaml --config path/to/session_config.json   # start from saved parameters
 uv run pybehaviour-replay path/to/session_folder # re-run a recorded session through the task logic
+uv run pybehaviour-replay path/to/session_folder --thresholds 0.03,0.04,0.05   # if the lick threshold was changed during the session
 ```
+
+**As a normal command** (once per Windows user; afterwards just type `pybehaviour`
+in any terminal, and `git pull` updates are picked up at the next start):
+
+```
+uv tool install --editable C:\pyBehaviour_control --python 3.12
+```
+Keep `--python 3.12`: without it uv picks the newest Python, for which some
+dependencies may not have ready-made packages yet (they would need a C++ compiler).
+After a pull that changes dependencies, run it again with `--reinstall`. For a
+desktop shortcut: right-click the desktop ▸ New ▸ Shortcut, target
+`%USERPROFILE%\.local\bin\pybehaviour.exe`, then Properties ▸ Change Icon ▸
+`src\pybehaviour\gui\icons\pybehaviour.ico` from this folder. The window and
+taskbar already use the icon (made by `scripts/make_icon.py` from the MATLAB GUI's drawing).
 
 Each rig has a YAML file with its device names and wiring
 ([rigs/example_rig.yaml](rigs/example_rig.yaml)); a new rig needs a new file,
-not code changes.
+not code changes. Load one once with *Settings ▸ Load rig file…* (or `--rig`):
+from then on a plain `uv run pybehaviour` opens it, with the last used preset
+(remembered per user in `~/.pybehaviour/state.json`). Without a rig file the
+GUI starts with the built-in rig settings (the MATLAB channels) and says so in
+the title.
 
 ## How it works
 
@@ -104,6 +124,13 @@ suggests the amplitude for a target level at that frequency (level scales as
 20·log10 of the amplitude) and can set it for the task. Meters with Fast/Slow
 weighting read short tones low: measure a long tone (default 1000 ms) or use
 max hold.
+
+The *Background noise* tab (or *Calibrate noise levels…* in the Context tab)
+plays the context task's pink or brown noise continuously. Set each noise's
+gain until the meter reads the same for both: the gains are the task settings
+`pink_noise_gain_db` / `brown_noise_gain_db` (Context tab, saved in presets and
+`session_config.json`). During a session, changing them in the Context tab is
+heard immediately. The noise now loops, so it never stops mid-block.
 
 ## Using the GUI
 
