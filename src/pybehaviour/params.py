@@ -90,6 +90,8 @@ class SessionParams:
     aud_stim_weight: float = 0
     context_sound_on: bool = True
     bckg_noise_directory: str = ""
+    pink_noise_gain_db: float = 0.0  # gain applied when playing pink_noise.wav (level calibration)
+    brown_noise_gain_db: float = 0.0
 
     # --- Light stimulus --------------------------------------------------
     light_duration: float = 10  # ms

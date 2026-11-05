@@ -109,6 +109,8 @@ class Session:
         self.params = params.copy(date=self.params.date, session_time=self.params.session_time)
         if self.controller:
             self.controller.set_params(self.params)
+        for m in self.modules:
+            m.on_params(self.params)
 
     def save_config(self) -> None:
         """'Update configuration' button: rewrite session_config.json with current values."""

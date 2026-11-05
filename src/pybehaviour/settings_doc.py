@@ -92,6 +92,8 @@ ENTRIES: list[tuple[str, str, str, str, str]] = [
     ("Context", "context_table_directory", "Context table folder", "", "Folder with rewarded_context.csv. Not saved in session_config.json."),
     ("Context", "bckg_noise_directory", "Noise folder", "", "Folder with pink_noise.wav and brown_noise.wav. Not saved in session_config.json."),
     ("Context", "context_sound_on", "Play background noise", "on/off", ""),
+    ("Context", "pink_noise_gain_db", "Pink noise gain", "dB", "Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session."),
+    ("Context", "brown_noise_gain_db", "Brown noise gain", "dB", "Same for brown_noise.wav."),
     # --- Display --------------------------------------------------------------
     ("Display", "last_recent_trials", "Window (trials)", "trials", "Sliding window of the performance plot."),
 ]

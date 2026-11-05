@@ -98,6 +98,45 @@ def test_simulated_session_from_gui(app, window, tmp_path):
     assert (window.session.folder / "results.csv").exists()
 
 
+def test_context_banner_shows_rewarded_and_not_rewarded_blocks(app, window, tmp_path):
+    from pybehaviour.gui import theme
+
+    (tmp_path / "rewarded_context.csv").write_text("MouseName,RewardedContext\nCTX01,pink\n", encoding="utf-8")
+    window.set_params(quick_params(wh_stim_weight_1=1, no_stim_weight=1, min_iti=200, max_iti=200,
+                                   min_quiet_window=0, max_quiet_window=0, baseline_window=0, artifact_window=0,
+                                   response_window=300, trial_duration=400, mouse_name="CTX01",
+                                   context_flag=True, context_block_size=1, context_sound_on=False,
+                                   context_table_directory=str(tmp_path), behaviour_directory=str(tmp_path)))
+    assert window.context_banner.isHidden()  # the window is never shown in tests: isVisible() is always False
+    window._start()
+    seen = {}
+    end = time.time() + 8
+    while len(seen) < 2 and time.time() < end:
+        pump(app, 0.05)
+        if not window.context_banner.isHidden():
+            seen[window.context_banner.text()] = window.context_banner.styleSheet()
+    window._stop()
+    assert seen == {
+        "REWARDED CONTEXT": f"background: {theme.CONTEXT_REWARDED}",
+        "NON-REWARDED CONTEXT": f"background: {theme.CONTEXT_NOT_REWARDED}",
+    }
+    # results.csv keeps the noise names (same as MATLAB): pink was rewarded for this mouse
+    saved = {(r["context_block"], bool(r["wh_reward"])) for r in window.rows}
+    assert saved <= {("pink", True), ("brown", False)} and saved
+
+
+def test_no_context_banner_without_context_task(app, window, tmp_path):
+    window.set_params(quick_params(wh_stim_weight_1=1, no_stim_weight=1, min_iti=200, max_iti=200,
+                                   min_quiet_window=0, max_quiet_window=0, baseline_window=0, artifact_window=0,
+                                   response_window=300, trial_duration=400, behaviour_directory=str(tmp_path)))
+    window._start()
+    assert window.session is not None and window.session.running
+    pump(app, 1.0)
+    window._stop()
+    assert window.timeline_text.text().startswith("Trial ")
+    assert window.context_banner.isHidden()
+
+
 def test_pdco_window_builds_config(app, window):
     from pybehaviour.gui.pdco_window import PdcoWindow
 
@@ -327,6 +366,30 @@ def test_valve_suggestion_sets_opening(app, tmp_path):
 
 
 # --- sound calibration ----------------------------------------------------------------
+
+def test_noise_gains_from_the_sound_calibration_window(app, tmp_path):
+    from pybehaviour.modules.context import SilentPlayer
+
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.set_params(w.params().copy(bckg_noise_directory=str(tmp_path), pink_noise_gain_db=-7.6))
+    w._open_sound_calibration(noise=True)
+    sw = w.sound_window
+    assert sw.tabs.currentIndex() == 1 and sw.noise_gain["pink"].value() == -7.6
+    players = []
+    sw.noise_player_factory = lambda folder: players.append(SilentPlayer()) or players[-1]
+    sw.noise_buttons["brown"].click()
+    assert players[0].played == ["brown"] and players[0].gains == {"pink": -7.6, "brown": 0.0}
+    assert "Playing brown noise at +0 dB" in sw.noise_status.text()
+    sw.noise_gain["brown"].setValue(-2.5)  # heard at once, and becomes the task setting
+    assert players[0].gains["brown"] == -2.5 and w.params().brown_noise_gain_db == -2.5
+    assert w.b.widgets["brown_noise_gain_db"].value() == -2.5
+    sw.noise_buttons["pink"].click()
+    assert players[0].played == ["brown", "pink"] and not sw.noise_buttons["brown"].isChecked()
+    sw.stop_noise()
+    assert players[0].played[-1] == "stop"
+    for x in (sw, w):
+        x.close()
+
 
 def test_sound_calibration_end_to_end(app, tmp_path):
     w = make_window(tmp_path, tmp_path / "presets")

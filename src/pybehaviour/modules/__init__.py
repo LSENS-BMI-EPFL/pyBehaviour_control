@@ -10,8 +10,9 @@ controller calls every enabled module, in list order, at these points:
     on_abort(t)                      early lick aborted the trial
     on_trial_end(trial, row)         row about to be written to results.csv
     on_session_stop()                session stopping; put outputs in a safe state
+    on_params(params)                settings changed in the GUI during the session (GUI thread)
 
-Hooks must return quickly: they run on the acquisition thread.
+Hooks must return quickly: they run on the acquisition thread (on_params: on the GUI thread).
 """
 
 from __future__ import annotations
@@ -58,4 +59,7 @@ class Module:
         pass
 
     def on_session_stop(self) -> None:
+        pass
+
+    def on_params(self, params: "SessionParams") -> None:
         pass

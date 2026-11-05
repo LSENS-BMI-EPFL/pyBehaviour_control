@@ -180,6 +180,8 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 | `context_table_directory` | Context table folder |  | "" | Folder with rewarded_context.csv. Not saved in session_config.json. |
 | `bckg_noise_directory` | Noise folder |  | "" | Folder with pink_noise.wav and brown_noise.wav. Not saved in session_config.json. |
 | `context_sound_on` | Play background noise | on/off | true |  |
+| `pink_noise_gain_db` | Pink noise gain | dB | 0 | Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session. |
+| `brown_noise_gain_db` | Brown noise gain | dB | 0 | Same for brown_noise.wav. |
 
 ## Display
 

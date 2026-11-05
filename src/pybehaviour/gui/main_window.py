@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -27,6 +28,7 @@ from ..modules.context import ContextModule
 from ..modules.opto import OptoConfig, OptoModule
 from ..modules.pdco import PdcoConfig, PdcoModule
 from ..params import SessionParams
+from ..planner import CONTEXTS
 from ..presets import Preset, PresetStore, check_name, load_session_settings
 from ..results import compute_performance, compute_reward_volume, early_lick_rate, sliding_rates
 from ..rig import Rig
@@ -119,10 +121,12 @@ class Tile(QtWidgets.QFrame):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, rig_factory: Callable[[], Rig], defaults: SessionParams | None = None, title: str = "",
                  rig_config: RigConfig | None = None, presets: PresetStore | None = None,
-                 preset: Preset | None = None, rig_defaults: SessionParams | None = None):
+                 preset: Preset | None = None, rig_defaults: SessionParams | None = None,
+                 load_rig: Callable[[Path], None] | None = None):
         super().__init__()
         self.setWindowTitle(f"LSENS behaviour control {title}".strip())
         self.rig_factory = rig_factory
+        self.load_rig = load_rig  # reopens the GUI on another rig file (Settings ▸ Load rig file…)
         self.rig_config = rig_config or RigConfig()
         self.session: Session | None = None
         self.rows: list[dict] = []
@@ -149,6 +153,15 @@ class MainWindow(QtWidgets.QMainWindow):
         outer.setContentsMargins(10, 8, 10, 8)
         outer.setSpacing(8)
         outer.addWidget(self._header())
+        # full-width strip under the header: which context block we are in (context task only)
+        self.context_banner = QtWidgets.QLabel(objectName="contextBanner", alignment=QtCore.Qt.AlignCenter)
+        self.context_banner.setAccessibleName("Current context")
+        self.context_banner.setToolTip("Context block of the current trial (changes when a new block is planned)")
+        f = self.context_banner.font()
+        f.setPointSize(theme.BASE_POINT_SIZE + 5)
+        self.context_banner.setFont(f)
+        self.context_banner.setVisible(False)
+        outer.addWidget(self.context_banner)
         self._menus()
 
         body = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
@@ -226,9 +239,12 @@ class MainWindow(QtWidgets.QMainWindow):
         m.addAction("Reset to rig defaults", lambda: self._select_preset(None))
         m.addAction("Export settings as rig defaults…", self._export_defaults)
         m.addSeparator()
-        folder = str(self.presets.directory) if self.presets else "(no presets folder)"
-        info = m.addAction(f"Presets folder: {folder}")
-        info.setEnabled(False)
+        self.load_rig_action = m.addAction("Load rig file…", self._load_rig_file, QtGui.QKeySequence("Ctrl+O"))
+        self.load_rig_action.setEnabled(self.load_rig is not None)
+        m.addSeparator()
+        rig = self.rig_config.source or "(none: built-in rig settings)"
+        for text in (f"Rig file: {rig}", f"Presets folder: {self.presets.directory if self.presets else '(none)'}"):
+            m.addAction(text).setEnabled(False)
         t = bar.addMenu("&Tools")
         t.addAction("Coil calibration…", self._open_calibration)
         t.addAction("Valve calibration…", self._open_valve_calibration)
@@ -440,6 +456,14 @@ class MainWindow(QtWidgets.QMainWindow):
         c.row("Context table folder", b.line("context_table_directory"), tip="Folder with rewarded_context.csv")
         c.row("Noise folder", b.line("bckg_noise_directory"), tip="Folder with pink_noise.wav and brown_noise.wav")
         c.full(b.check("context_sound_on", "Play background noise"))
+        c.row("Pink noise gain (dB)", b.spin("pink_noise_gain_db", 1, maximum=40, step=0.5),
+              tip="Level of pink_noise.wav; applies immediately, also during a session")
+        c.row("Brown noise gain (dB)", b.spin("brown_noise_gain_db", 1, maximum=40, step=0.5),
+              tip="Level of brown_noise.wav; applies immediately, also during a session")
+        noise_cal = QtWidgets.QPushButton("Calibrate noise levels…")
+        noise_cal.setToolTip("Play each noise and set its gain with the dB meter")
+        noise_cal.clicked.connect(lambda: self._open_sound_calibration(noise=True))
+        c.full(noise_cal)
         note = QtWidgets.QLabel("In context mode the whisker reward follows the mouse's rewarded context.",
                                 objectName="muted", wordWrap=True)
         c.full(note)
@@ -500,9 +524,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "galvo": self.live_plots["galvo"].plot(pen=ink),
         }
         # series keys live in the row label, so no legend covers the traces
-        def key(color, text, dashed=False):
-            return f"<br><span style='color:{color}'>{'╌╌' if dashed else '━━'}</span> {text}"
-
+        key = self._key
         self.live_labels["trial_ttl"].setText("Trial" + key(theme.TEXT, "trial") + key(theme.CONTEXT, "context"),
                                               color=theme.TEXT_2)
         self.live_labels["ttl"].setText("PdCO TTL" + key(theme.TTL1, "ch1 ON") + key(theme.TTL2, "ch2 OFF", True),
@@ -583,6 +605,11 @@ class MainWindow(QtWidgets.QMainWindow):
         split.addWidget(perf_card)
         split.setSizes([600, 380])
         return split
+
+    @staticmethod
+    def _key(color: str, text: str, dashed: bool = False) -> str:
+        """One series key line for a live-plot row label."""
+        return f"<br><span style='color:{color}'>{'╌╌' if dashed else '━━'}</span> {text}"
 
     # --- summary (right) --------------------------------------------------------------
     def _summary_panel(self) -> QtWidgets.QWidget:
@@ -740,6 +767,25 @@ class MainWindow(QtWidgets.QMainWindow):
     def pdco_config(self) -> PdcoConfig | None:
         return self.pdco_window.config() if self.pdco_window else self._pending_pdco
 
+    def _load_rig_file(self) -> None:
+        """Pick a rig file; the GUI reopens on it and uses it from now on (also at the next launch)."""
+        if self.load_rig is None:
+            return
+        if self.session is not None and self.session.running:
+            QtWidgets.QMessageBox.warning(self, "Session running", "Stop the session before loading another rig file.")
+            return
+        from ..app_state import rigs_dir
+
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load rig file", str(rigs_dir()), "Rig files (*.yaml *.yml)")
+        if not path:
+            return
+        try:
+            RigConfig.load(Path(path))  # check it before closing this window
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Cannot load rig file", f"{path}\n\n{exc}")
+            return
+        self.load_rig(Path(path))
+
     def _open_valve_calibration(self) -> None:
         if self.valve_window is None:
             self.valve_window = ValveWindow(self, self.rig_config, self.rig_factory,
@@ -750,12 +796,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.valve_window.raise_()
         self.valve_window.activateWindow()
 
-    def _open_sound_calibration(self) -> None:
+    def _open_sound_calibration(self, noise: bool = False) -> None:
         if self.sound_window is None:
             self.sound_window = SoundWindow(self, self.rig_config, self.rig_factory,
                                             lambda: self.session is not None and self.session.running)
         else:
             self.sound_window.load_from_task()
+        if noise:
+            self.sound_window.show_noise_tab()
         self.sound_window.show()
         self.sound_window.raise_()
         self.sound_window.activateWindow()
@@ -1094,13 +1142,34 @@ class MainWindow(QtWidgets.QMainWindow):
             details.append("Rewarded" if rewarded else "Not rewarded")
         if t.is_opto:
             details.append("Opto ON")
-        if t.context_block not in ("NA", ""):
-            details.append(f"Context: {t.context_block}")
+        if t.context_block in CONTEXTS:
+            details.append("Rewarded context" if t.wh_reward else "Non-rewarded context")
+        elif t.context_block not in ("NA", ""):
+            details.append(f"Context: {t.context_block}")  # passive stimulation: active / passive
         if t.pdco_activation:
             details.append({1: "PdCO ON pulse", -1: "PdCO OFF pulse", 2: "PdCO ON + OFF"}[t.pdco_activation])
         self.timeline_text.setText(f"Trial {t.trial_number}: {title}")
         self.timeline_detail.setText(" · ".join(details))
         self.next_swatch.setStyleSheet(f"color: {color}; font-size: 16pt")
+        self._show_context(t)
+
+    def _show_context(self, t: TrialSpec) -> None:
+        """Banner + context trace colour: green in the rewarded context, purple in the non-rewarded one.
+        Named by reward, not by noise (which noise is rewarded differs per mouse; results.csv keeps
+        the noise name). Updated when a trial is planned, which is also when the context noise switches."""
+        if t.context_block not in CONTEXTS:  # no context task ("NA", or passive "active"/"passive")
+            self.context_banner.setVisible(False)
+            return
+        if t.wh_reward:
+            color, name = theme.CONTEXT_REWARDED, "rewarded"
+        else:
+            color, name = theme.CONTEXT_NOT_REWARDED, "non-rewarded"
+        self.context_banner.setText(f"{name.upper()} CONTEXT")
+        self.context_banner.setStyleSheet(f"background: {color}")
+        self.context_banner.setVisible(True)
+        self.curves["context"].setPen(theme.pen(color))
+        self.live_labels["trial_ttl"].setText(
+            "Trial" + self._key(theme.TEXT, "trial") + self._key(color, name), color=theme.TEXT_2)
 
     def _update_performance(self) -> None:
         p = self.params()
@@ -1213,6 +1282,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _clear_display(self) -> None:
         self.online_text.setText(" ")
+        self.context_banner.setVisible(False)
         self.timeline_text.setText("–")
         self.timeline_detail.setText("")
         self.state_text.setText("")

@@ -16,7 +16,7 @@ from PySide6 import QtWidgets
 from ..params import SessionParams
 
 _TYPES = {f.name: f.type for f in dataclasses.fields(SessionParams)}
-NEGATIVE_OK = {f for f in _TYPES if "amp" in f}
+NEGATIVE_OK = {f for f in _TYPES if "amp" in f or f.endswith("_gain_db")}
 
 
 class Binder:

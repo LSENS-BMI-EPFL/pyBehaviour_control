@@ -31,6 +31,10 @@ TTL2 = WHISKER
 CONTEXT = LIGHT
 THRESHOLD = "#e34948"
 
+# context blocks (lab convention: green = whisker rewarded, purple = not rewarded; always labelled)
+CONTEXT_REWARDED = "#1f8a3c"
+CONTEXT_NOT_REWARDED = "#7b3fa0"
+
 # status (reserved, always shown with a label)
 STATUS = {
     "idle": ("#77756f", "○"),
@@ -92,6 +96,7 @@ QPushButton#danger:disabled {{ background: #e3b5b3; color: #f3f2ef; border-color
 QAbstractSpinBox, QLineEdit, QComboBox {{ padding: 3px 6px; border: 1px solid {BORDER}; border-radius: 4px; background: #ffffff; min-height: 22px; }}
 QLabel#muted {{ color: {TEXT_2}; }}
 QLabel#statusPill {{ padding: 6px 14px; border-radius: 14px; color: white; font-weight: 600; }}
+QLabel#contextBanner {{ padding: 6px 14px; border-radius: 8px; color: white; font-weight: 700; }}
 QFrame#tile {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px; }}
 QLabel#tileValue {{ font-size: 20pt; font-weight: 600; color: {TEXT}; }}
 QLabel#tileLabel {{ color: {TEXT_2}; }}
