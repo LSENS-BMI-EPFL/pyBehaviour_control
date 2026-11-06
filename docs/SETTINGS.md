@@ -177,7 +177,7 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 |---|---|---|---|---|
 | `context_flag` | Context task | on/off | false | Pink / brown noise blocks; whisker reward follows the mouse's rewarded context. |
 | `context_block_size` | Max same-context blocks |  | 1 | Maximum consecutive blocks of the same context. |
-| `context_table_directory` | Context table folder |  | "" | Folder with rewarded_context.csv (Browse… picks the file). Not saved in session_config.json. |
+| `context_table_directory` | Context table (.csv) |  | "" | The CSV file with each mouse's rewarded context (columns MouseName, RewardedContext); a new mouse is added at its first context session. A folder also works (its rewarded_context.csv, as in MATLAB). Not saved in session_config.json. |
 | `bckg_noise_directory` | Noise folder |  | "" | Folder with pink_noise.wav and brown_noise.wav (Browse… picks the folder). Not saved in session_config.json. |
 | `context_sound_on` | Play background noise | on/off | true |  |
 | `pink_noise_gain_db` | Pink noise gain | dB | 0 | Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session. Rig setting: rig file `defaults:`, never in presets. |

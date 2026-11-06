@@ -553,9 +553,9 @@ def test_mouse_name_loads_its_whisker_settings(app, tmp_path):
 
 
 def test_browse_context_table_and_noise_folder(app, tmp_path, monkeypatch):
-    table = tmp_path / "ctx" / "rewarded_context.csv"
+    table = tmp_path / "ctx" / "jules_contexts.csv"  # any file name
     table.parent.mkdir()
-    table.write_text("mouse_name,rewarded_context\n", encoding="utf-8")
+    table.write_text("MouseName,RewardedContext\nJL001,pink\n", encoding="utf-8")
     noise = tmp_path / "noise"
     noise.mkdir()
     for n in ("pink_noise.wav", "brown_noise.wav"):
@@ -569,11 +569,12 @@ def test_browse_context_table_and_noise_folder(app, tmp_path, monkeypatch):
     assert w.context_table_btn.isEnabled() and w.noise_dir_btn.isEnabled()
     w.context_table_btn.click()
     w.noise_dir_btn.click()
-    assert w.params().context_table_directory == str(table.parent)
+    assert w.params().context_table_directory == str(table)
     assert w.params().bckg_noise_directory == str(noise) and not warnings
+    assert "csv" in w.b.widgets["context_table_directory"].placeholderText()
     other = tmp_path / "ctx" / "other.csv"
-    other.write_text("", encoding="utf-8")
+    other.write_text("a,b\n1,2\n", encoding="utf-8")
     monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(other), ""))
     w.context_table_btn.click()
-    assert warnings and w.params().context_table_directory == str(table.parent)  # wrong file refused
+    assert warnings and w.params().context_table_directory == str(table)  # not a context table: refused
     w.close()

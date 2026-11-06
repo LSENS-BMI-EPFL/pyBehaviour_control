@@ -22,11 +22,20 @@ from ..planner import CONTEXTS
 from . import Module, SessionContext
 
 TABLE_NAME = "rewarded_context.csv"
+TABLE_COLUMNS = ("MouseName", "RewardedContext")
 
 
-def get_or_assign_rewarded_context(table_dir: Path, mouse: str, rng: np.random.Generator) -> str:
-    """Rewarded context for ``mouse``; assigns a random one for a new mouse and saves it."""
-    path = Path(table_dir) / TABLE_NAME
+def table_path(setting: str | Path) -> Path:
+    """The context table file from the ``context_table_directory`` setting: a .csv file, or
+    (as in MATLAB and older presets) the folder holding rewarded_context.csv."""
+    p = Path(setting)
+    return p if p.suffix.lower() == ".csv" else p / TABLE_NAME
+
+
+def get_or_assign_rewarded_context(table: str | Path, mouse: str, rng: np.random.Generator) -> str:
+    """Rewarded context for ``mouse``; assigns a random one for a new mouse and saves it.
+    ``table``: the .csv file, or its folder (rewarded_context.csv)."""
+    path = table_path(table)
     table = pd.read_csv(path) if path.exists() else pd.DataFrame(columns=["MouseName", "RewardedContext"])
     match = table.loc[table["MouseName"] == mouse, "RewardedContext"]
     if len(match):

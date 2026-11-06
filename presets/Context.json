@@ -71,7 +71,7 @@
     "association_flag": false,
     "context_flag": true,
     "context_block_size": 1,
-    "context_table_directory": "M:\\analysis\\Jules_Lebert\\behavior_context_files",
+    "context_table_directory": "M:\\analysis\\Jules_Lebert\\behavior_context_files\\rewarded_context.csv",
     "passive_stim_flag_enable": false,
     "passive_stim_flag": false,
     "passive_trial_max": 40,

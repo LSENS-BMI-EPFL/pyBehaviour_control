@@ -498,10 +498,14 @@ class MainWindow(QtWidgets.QMainWindow):
         c.full(b.check("context_flag", "Context task"))
         c.row("Max same-context blocks", b.spin("context_block_size"))
         self.context_table_btn = QtWidgets.QPushButton("Browse…")
-        self.context_table_btn.setToolTip("Pick the rewarded_context.csv file")
+        self.context_table_btn.setToolTip("Pick the context table .csv file")
         self.context_table_btn.clicked.connect(self._browse_context_table)
-        c.row("Context table folder", b.line("context_table_directory"), self.context_table_btn,
-              tip="Folder with rewarded_context.csv")
+        table = b.line("context_table_directory")
+        table.setPlaceholderText("path to rewarded_context.csv")
+        c.row("Context table (.csv)", table, self.context_table_btn,
+              tip="CSV file with the rewarded context of each mouse (columns MouseName, RewardedContext).\n"
+                  "A mouse not in it gets a random context at its first context session, added to the file.\n"
+                  "A folder also works: its rewarded_context.csv is used (as in MATLAB).")
         self.noise_dir_btn = QtWidgets.QPushButton("Browse…")
         self.noise_dir_btn.setToolTip("Pick the folder holding pink_noise.wav and brown_noise.wav")
         self.noise_dir_btn.clicked.connect(self._browse_noise_folder)
@@ -1109,18 +1113,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- buttons ---------------------------------------------------------------------------
     def _browse_context_table(self) -> None:
-        from ..modules.context import TABLE_NAME
+        from ..modules.context import TABLE_COLUMNS, table_path
 
-        start = self.b.widgets["context_table_directory"].text()
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Context table", start,
-                                                        f"Context table ({TABLE_NAME});;CSV files (*.csv)")
+        current = self.b.widgets["context_table_directory"].text()
+        start = str(table_path(current)) if current else ""
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Context table (.csv)", start, "CSV files (*.csv)")
         if not path:
             return
-        if Path(path).name != TABLE_NAME:
-            QtWidgets.QMessageBox.warning(self, "Context table", f"The task reads {TABLE_NAME} in the chosen folder, "
-                                          f"not {Path(path).name}. Rename the file, or pick {TABLE_NAME}.")
+        try:
+            header = Path(path).read_text(encoding="utf-8-sig").splitlines()[:1]
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(self, "Context table", str(exc))
             return
-        self.b.widgets["context_table_directory"].setText(str(Path(path).parent))
+        columns = [c.strip() for c in header[0].split(",")] if header else []
+        if columns and not set(TABLE_COLUMNS) <= set(columns):
+            QtWidgets.QMessageBox.warning(self, "Context table", f"{Path(path).name} is not a context table: it needs "
+                                          f"the columns {', '.join(TABLE_COLUMNS)} (found: {', '.join(columns)}).")
+            return
+        self.b.widgets["context_table_directory"].setText(str(Path(path)))
         self._params_changed()
 
     def _browse_noise_folder(self) -> None:

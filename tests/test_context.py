@@ -22,6 +22,15 @@ def test_new_mouse_is_assigned_and_saved(tmp_path):
     assert get_or_assign_rewarded_context(tmp_path, "NEW", np.random.default_rng(99)) == ctx
 
 
+def test_table_can_be_given_as_the_csv_file(tmp_path):
+    table = tmp_path / "my_contexts.csv"
+    pd.DataFrame({"MouseName": ["AB1"], "RewardedContext": ["pink"]}).to_csv(table, index=False)
+    assert get_or_assign_rewarded_context(table, "AB1", np.random.default_rng()) == "pink"
+    new = get_or_assign_rewarded_context(str(table), "AB9", np.random.default_rng(0))
+    assert pd.read_csv(table)["MouseName"].tolist() == ["AB1", "AB9"] and new in ("pink", "brown")
+    assert not (tmp_path / "rewarded_context.csv").exists()
+
+
 def test_session_switches_noise_and_pulses_context_line(tmp_path):
     pd.DataFrame({"MouseName": ["MPXXX"], "RewardedContext": ["pink"]}).to_csv(tmp_path / "rewarded_context.csv", index=False)
     player = SilentPlayer()
