@@ -22,6 +22,7 @@ covered by a test.
 | K9 | `light_prestim_delay` and `light_freq` are always 0 but still saved. | `trial.py` | |
 | K10 | Opto sessions drop light trials from the trial pool; the "Control" opto probability is saved but not used. | `planner.py` | `test_opto_pool_splits_each_type_by_its_probability` |
 | K12 | The opto amplitude field is labelled "mV" in MATLAB but multiplies a volt command; the Python window labels it V. Same number, same output. | `gui/opto_window.py` | |
+| K13 | **Licks are decided on one input and shown/saved from another.** The task decides on `main_input` (`Dev1/ai0`, single-ended, 1 kHz); the live lick plot and `log_continuous.bin` show `log_input` channel `lick` (`Dev2/ai0`, differential, 5 kHz). Nothing records the decision input. A lick close to the threshold can cross the line on screen and in the log but not on the decision input (or the reverse), so a trial can start although the plot shows a lick in its quiet window. Example: MPXXX_20261106_152902, trials 4 and 5 (licks of 0.048 and 0.037 V, threshold 0.03 V, noise about ±0.01 V); the replay on the logged trace says those trials would have waited. Also why ~4% of trials in the MATLAB session replay disagree (`docs/RIG_VALIDATION.md`). Left as is for now; options: plot and save the decision input (e.g. `lick_control.bin`), or raise the threshold / improve the lick-sensor signal. | `rig/config.py` (`main_input`, `log_input`), `gui/main_window._update_live_plots` | |
 
 To change one of these, change the code *and* the test that pins it, and note it here.
 

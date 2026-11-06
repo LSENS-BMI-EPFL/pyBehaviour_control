@@ -83,6 +83,8 @@ channel `lick`). If the rig decides on licks from a different input
 differ in noise, and licks close to the threshold can be judged differently.
 Check the trials that do not match: if the logged lick trace there is near the
 threshold, the difference comes from the two inputs, not from the task logic.
+The same applies live: the lick plot shows the logged input, not the one the task
+decides on (`PARITY.md`, K13).
 
 The replay uses the lick threshold from `session_config.json` for every trial:
 `results.csv` does not record it (neither does MATLAB). If the threshold was

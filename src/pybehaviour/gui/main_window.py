@@ -56,6 +56,29 @@ OUTCOME_TEXT = {
     Perf.LIGHT_HIT: "Light hit", Perf.LIGHT_MISS: "Light miss",
     Perf.FALSE_ALARM: "False alarm", Perf.CORRECT_REJECTION: "Correct rejection",
 }
+LIVE_PLOT_BINS = 1500  # slices per live trace: about one per screen pixel, 2 points each
+
+
+def peak_decimate(t: np.ndarray, y: np.ndarray, bins: int) -> tuple[np.ndarray, np.ndarray]:
+    """Min and max of each of ``bins`` slices, in time order: what a screen pixel column would show.
+
+    Keeps 2 ms camera pulses and 4 ms laser pulses visible at 5 kHz while drawing ~3000 points
+    instead of 50 000 per trace (drawing every sample made the live view stutter).
+    """
+    n = y.size
+    if n <= 2 * bins:
+        return t, y
+    k = n // bins  # samples per slice
+    bins = n // k  # as many whole slices as fit: fewer than k samples left over
+    m = k * bins
+    blocks = y[:m].reshape(bins, k)
+    lo, hi = blocks.argmin(axis=1), blocks.argmax(axis=1)
+    base = np.arange(bins) * k
+    idx = np.empty(2 * bins, dtype=np.int64)
+    idx[0::2] = base + np.minimum(lo, hi)
+    idx[1::2] = base + np.maximum(lo, hi)
+    idx = np.concatenate([idx, np.arange(m, n)])  # the last few samples as they are
+    return t[idx], y[idx]
 
 
 class Form:
@@ -584,8 +607,9 @@ class MainWindow(QtWidgets.QMainWindow):
             "opto": self.live_plots["opto"].plot(pen=theme.pen(theme.AUDITORY, 1.5)),
         }
         for curve in self.curves.values():
-            # keep min and max of each pixel column: short pulses (4 ms laser, 2 ms camera) stay visible
-            curve.setDownsampling(auto=True, method="peak")
+            # data arrive already reduced to the min and max of each pixel column (peak_decimate), so
+            # short pulses stay visible; antialiasing these dense traces cost ~10x the drawing time
+            curve.opts["antialias"] = False
             curve.setClipToView(True)
         # series keys live in the row label, so no legend covers the traces
         key = self._key
@@ -1483,20 +1507,23 @@ class MainWindow(QtWidgets.QMainWindow):
         data = self.session.logger.snapshot()
         names = self.session.rig.log_channel_names
         t = np.arange(data.shape[1]) / self.session.rig.log_rate
+        # only the rows on screen; ttl1/ttl2 share the "ttl" row, context the trial row
+        row_of = {"ttl1": "ttl", "ttl2": "ttl", "context": "trial_ttl"}
 
-        def ch(name):  # full resolution; the curves downsample keeping peaks
+        def show(key: str, y: np.ndarray | None) -> None:
+            if y is None or row_of.get(key, key) not in self._live_visible:
+                return
+            self.curves[key].setData(*peak_decimate(t, y, LIVE_PLOT_BINS))
+
+        def ch(name):
             return data[names.index(name)] if name in names else None
 
         for key in ("trial_ttl", "cam1", "cam2", "galvo", "ttl1", "ttl2", "opto"):
-            y = ch(key)
-            if y is not None:
-                self.curves[key].setData(t, y)
+            show(key, ch(key))
         lick = ch("lick")
-        if lick is not None:
-            self.curves["lick"].setData(t, np.abs(lick))
-        ctx = ch("context")
-        if ctx is not None and self.params().context_flag:
-            self.curves["context"].setData(t, ctx)
+        show("lick", None if lick is None else np.abs(lick))
+        if self.b.widgets["context_flag"].isChecked():
+            show("context", ch("context"))
         else:
             self.curves["context"].setData([], [])
 

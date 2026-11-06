@@ -553,9 +553,32 @@ def test_opto_row_only_in_opto_sessions(app, window):
 
 
 def test_short_pulses_survive_plot_downsampling(app, window):
-    for key in ("opto", "cam1", "lick"):
-        opts = window.curves[key].opts
-        assert opts["autoDownsample"] and opts["downsampleMethod"] == "peak"
+    """The live view draws ~3000 points per trace (not 50 000), and a 2 ms camera pulse still shows."""
+    import numpy as np
+
+    class Logger:
+        data = np.zeros((10, 50_000))
+        data[3, 20_000:20_010] = 5.0  # cam1: one 2 ms pulse at 5 kHz
+
+        def snapshot(self):
+            return self.data.copy()
+
+    class Rig:
+        log_channel_names = ["lick", "galvo", "trial_ttl", "cam1", "cam2", "context", "ttl1", "ttl2", "opto", "dummy2"]
+        log_rate = 5000
+
+    class FakeSession:
+        logger, rig = Logger(), Rig()
+
+    window._event_timer.stop()
+    window.session = FakeSession()
+    try:
+        window._update_live_plots()
+    finally:
+        window.session = None
+    x, y = window.curves["cam1"].getData()
+    assert x.size < 4000 and y.max() == 5.0
+    assert not window.curves["cam1"].opts["antialias"]  # dense traces: drawing cost
 
 
 # --- whisker settings per mouse ----------------------------------------------------
@@ -612,3 +635,25 @@ def test_browse_context_table_and_noise_folder(app, tmp_path, monkeypatch):
     w.context_table_btn.click()
     assert warnings and w.params().context_table_directory == str(table)  # not a context table: refused
     w.close()
+
+
+# --- live traces ------------------------------------------------------------------------
+
+def test_peak_decimate_keeps_short_pulses_and_few_points():
+    import numpy as np
+
+    from pybehaviour.gui.main_window import LIVE_PLOT_BINS, peak_decimate
+
+    fs, n = 5000, 50_000  # 10 s at 5 kHz, as in the live buffer
+    t = np.arange(n) / fs
+    y = np.zeros(n)
+    for start in range(1234, n, 9000):
+        y[start:start + 10] = 5.0  # 2 ms camera pulses
+    y[40_007] = -1.0  # one-sample dip
+    td, yd = peak_decimate(t, y, LIVE_PLOT_BINS)
+    assert td.size < 2.1 * LIVE_PLOT_BINS and np.all(np.diff(td) >= 0)  # ~3000 points, in time order
+    starts = range(1234, n, 9000)
+    assert all(np.any((td >= s / fs - 0.01) & (td <= s / fs + 0.01) & (yd == 5.0)) for s in starts)
+    assert yd.min() == -1.0 and yd.max() == 5.0
+    short = np.arange(100.0)
+    assert peak_decimate(short, short, LIVE_PLOT_BINS)[1] is short  # small inputs untouched
