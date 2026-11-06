@@ -111,6 +111,13 @@ QScrollArea {{ border: none; background: transparent; }}
 """
 
 
+def context_shade(color: str, alpha: float = 0.16) -> QtGui.QColor:
+    """Light tint of a context colour for shaded blocks behind plot lines."""
+    c = QtGui.QColor(color)
+    c.setAlphaF(alpha)
+    return c
+
+
 def style_plot(plot: pg.PlotItem, left: str = "", bottom: str = "") -> None:
     """Recessive axes and hairline grid."""
     for name in ("left", "bottom"):

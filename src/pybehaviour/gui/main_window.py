@@ -620,6 +620,18 @@ class MainWindow(QtWidgets.QMainWindow):
             top.addWidget(lab)
             top.addSpacing(8)
             self.perf_key_labels[key] = lab
+        self.context_keys: list[QtWidgets.QWidget] = []
+        for color, text in ((theme.CONTEXT_REWARDED, "Rewarded context"), (theme.CONTEXT_NOT_REWARDED, "Non-rewarded context")):
+            sw = QtWidgets.QLabel("██")
+            c = theme.context_shade(color, 0.35)  # same tint as the bands, a bit stronger to read at this size
+            sw.setStyleSheet(f"color: rgba({c.red()}, {c.green()}, {c.blue()}, {c.alpha()})")
+            lab = QtWidgets.QLabel(text, objectName="muted")
+            lab.setToolTip("Shaded blocks behind the curves: the context of each completed trial")
+            for x in (sw, lab):
+                x.setVisible(False)
+                top.addWidget(x)
+                self.context_keys.append(x)
+            top.addSpacing(8)
         top.addStretch()
         lab = QtWidgets.QLabel("Window (trials)")
         win = self.b.spin("last_recent_trials")
@@ -648,6 +660,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for item in self.perf_end_labels.values():
             self.perf_plot.addItem(item)
         self.perf_plot.setXRange(1, 20, padding=0)
+        self._context_regions: list[pg.LinearRegionItem] = []  # one per context block, behind the curves
+        self._context_runs: list[tuple[int, int, bool]] = []  # (first, last completed trial, rewarded)
         self._hover_line = pg.InfiniteLine(angle=90, pen=pg.mkPen(theme.BORDER))
         self._hover_text = pg.TextItem(color=theme.TEXT, fill=pg.mkBrush(255, 255, 255, 230), border=pg.mkPen(theme.BORDER), anchor=(0, 0))
         for it in (self._hover_line, self._hover_text):
@@ -1375,6 +1389,7 @@ class MainWindow(QtWidgets.QMainWindow):
         rates = sliding_rates(self.rows, p.last_recent_trials)
         x = np.arange(1, len(rates["fa"]) + 1)
         self._rates = (x, rates)
+        self._shade_contexts(completed)
         names = {"aud": "Auditory", "wh": "Whisker", "light": "Light", "fa": "FA"}
         ends = []
         for k, curve in self.perf_curves.items():
@@ -1405,6 +1420,37 @@ class MainWindow(QtWidgets.QMainWindow):
             self.perf_plot.setXRange(1, max(x[-1] * 1.15, 5), padding=0)
         el = early_lick_rate(self.rows, p.last_recent_trials)
         self.early_curve.setData(np.arange(1, len(el) + 1), el)
+        if el.size:  # was stuck at trials 1-20
+            self.early_plot.setXRange(1, max(el.size * 1.15, 5), padding=0)
+
+    def _shade_contexts(self, completed: list[dict]) -> None:
+        """Context task: a band per block of completed trials, green when rewarded, purple when not."""
+        runs: list[list] = []  # [first, last, rewarded, block]
+        for i, r in enumerate(completed, start=1):
+            block = r.get("context_block")
+            if block not in CONTEXTS:
+                continue
+            if runs and runs[-1][3] == block and runs[-1][1] == i - 1:
+                runs[-1][1] = i
+            else:
+                runs.append([i, i, bool(r.get("wh_reward")), block])
+        self._context_runs = [(a, b, rew) for a, b, rew, _ in runs]
+        while len(self._context_regions) < len(runs):
+            region = pg.LinearRegionItem(movable=False, pen=pg.mkPen(None))
+            region.setZValue(-100)  # under the curves and the grid labels
+            self.perf_plot.addItem(region, ignoreBounds=True)
+            self._context_regions.append(region)
+        for region, (a, b, rewarded, _) in zip(self._context_regions, runs):
+            color = theme.CONTEXT_REWARDED if rewarded else theme.CONTEXT_NOT_REWARDED
+            brush = pg.mkBrush(theme.context_shade(color))
+            region.setBrush(brush)
+            region.setHoverBrush(brush)
+            region.setRegion((a - 0.5, b + 0.5))
+            region.setVisible(True)
+        for region in self._context_regions[len(runs):]:
+            region.setVisible(False)
+        for w in self.context_keys:
+            w.setVisible(bool(runs))
 
     def _perf_hover(self, evt) -> None:
         pos = evt[0]
@@ -1423,7 +1469,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return "–" if not np.isfinite(v) else f"{v * 100:.0f}%"
 
         self._hover_line.setPos(x[i])
-        self._hover_text.setText(f"Trial {x[i]}\nAuditory {fmt(rates['aud'][i])}\nWhisker {fmt(rates['wh'][i])}\n"
+        context = next((("\nRewarded context" if rew else "\nNon-rewarded context")
+                        for a, b, rew in self._context_runs if a <= x[i] <= b), "")
+        self._hover_text.setText(f"Trial {x[i]}{context}\nAuditory {fmt(rates['aud'][i])}\nWhisker {fmt(rates['wh'][i])}\n"
                                  f"Light {fmt(rates['light'][i])}\nFalse alarm {fmt(rates['fa'][i])}")
         self._hover_text.setPos(x[i], 1.0)
         self._hover_line.setVisible(True)
@@ -1465,4 +1513,5 @@ class MainWindow(QtWidgets.QMainWindow):
             c.setData([], [])
         for lab in self.perf_end_labels.values():
             lab.setVisible(False)
+        self._shade_contexts([])
         self._rates = None

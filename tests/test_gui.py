@@ -130,6 +130,40 @@ def test_context_banner_shows_rewarded_and_not_rewarded_blocks(app, window, tmp_
     assert saved <= {("pink", True), ("brown", False)} and saved
 
 
+def _context_rows(blocks):
+    """results rows: (context_block, whisker rewarded, early lick) per trial."""
+    from pybehaviour.results import make_row
+    from pybehaviour.trial import Perf, TrialSpec
+
+    rows = []
+    for n, (block, rewarded, early) in enumerate(blocks, start=1):
+        t = TrialSpec(trial_number=n, is_stim=True, is_whisker=True, context_block=block, wh_reward=rewarded)
+        perf = Perf.EARLY_LICK_OR_ASSOCIATION if early else (Perf.WHISKER_HIT if rewarded else Perf.WHISKER_MISS)
+        rows.append(make_row(t, perf=perf, trial_time=n, lick_flag=0, reaction_time=0, early_lick=int(early)))
+    return rows
+
+
+def test_performance_plot_shades_context_blocks(app, window):
+    from pybehaviour.gui import theme
+
+    window.rows = _context_rows([("pink", True, False)] * 3 + [("pink", True, True)]  # early lick: not plotted
+                                + [("brown", False, False)] * 2 + [("pink", True, False)])
+    window._update_performance()
+    shown = [r for r in window._context_regions if r.isVisible()]
+    assert [r.getRegion() for r in shown] == [(0.5, 3.5), (3.5, 5.5), (5.5, 6.5)]  # completed trials 1-3, 4-5, 6
+    colors = [r.brush.color().name() for r in shown]
+    assert colors == [theme.CONTEXT_REWARDED, theme.CONTEXT_NOT_REWARDED, theme.CONTEXT_REWARDED]
+    assert all(not k.isHidden() for k in window.context_keys)
+    window._clear_display()
+    assert not any(r.isVisible() for r in window._context_regions) and window.context_keys[0].isHidden()
+
+
+def test_no_shading_without_context_task(app, window):
+    window.rows = _context_rows([("NA", True, False)] * 4)
+    window._update_performance()
+    assert not any(r.isVisible() for r in window._context_regions) and window.context_keys[0].isHidden()
+
+
 def test_no_context_banner_without_context_task(app, window, tmp_path):
     window.set_params(quick_params(wh_stim_weight_1=1, no_stim_weight=1, min_iti=200, max_iti=200,
                                    min_quiet_window=0, max_quiet_window=0, baseline_window=0, artifact_window=0,
