@@ -203,3 +203,48 @@ def test_opto_off_does_nothing(tmp_path):
     assert "arm_opto" not in sim.rig.names()
     assert sim.planner.opto_probas is None
     assert not (tmp_path / "results_opto.csv").exists()
+
+
+# --- MATLAB c5ece74: non-opto trials, opto_count, logged laser trace ---------------------------
+
+def _laser_on_non_opto(tmp_path, grid):
+    sim, mod = opto_sim(tmp_path, cfg=OptoConfig(grid=grid, nostim_proba=0, wh_proba=1))
+    sim.run(30)
+    arms = [c for c in sim.rig.calls if c[1] == "arm_opto"]  # (t, name, laser max, galvo x, galvo y)
+    park = galvo_voltages(PARK_AP, PARK_ML, (0.1, -0.1), (0.5, -0.3))
+    non_opto = [a for a in arms if (a[3], a[4]) == pytest.approx(park)]
+    assert non_opto, "no non-opto trial in the run"
+    return [a[2] for a in non_opto]
+
+
+def test_non_opto_trials_fire_the_laser_off_brain_with_a_grid(tmp_path):
+    """MATLAB plays the same train on non-opto trials with the galvos parked away (light control)."""
+    assert all(m == pytest.approx(0.1) for m in _laser_on_non_opto(tmp_path, "Grid 4"))
+
+
+def test_non_opto_trials_keep_the_laser_off_without_a_grid(tmp_path):
+    """No Grid: no galvo to aim away, so the laser stays at its off level (MATLAB c5ece74)."""
+    assert all(m == LASER_OFF_V for m in _laser_on_non_opto(tmp_path, "No Grid"))
+
+
+def test_non_opto_count_starts_at_one(tmp_path):
+    """grid_count on non-opto rows = trial_number - opto trials so far, opto_count from 0 (MATLAB c5ece74)."""
+    sim, mod = opto_sim(tmp_path, cfg=OptoConfig(grid="Grid 4", nostim_proba=0, wh_proba=1))
+    sim.run(40)
+    opto = pd.read_csv(tmp_path / "results_opto.csv")
+    non = opto[opto["is_opto"] == 0]
+    assert len(non) >= 2
+    assert non["grid_count"].tolist() == list(range(1, len(non) + 1))
+
+
+def test_logged_opto_trace_follows_the_laser_command(tmp_path):
+    sim, _ = opto_sim(tmp_path, cfg=OptoConfig(grid="Grid 4", nostim_proba=1, wh_proba=1, amplitude=2.0,
+                                               baseline_ms=0, duration_ms=100, frequency=50))
+    sim.run(2.5)  # first trial starts at 2.0 s
+    start = sim.trial_starts()[0]
+    names = sim.rig.log_channel_names
+    times = start + np.arange(0, 0.2, 1 / sim.rig.log_rate)
+    trace = sim.rig.opto_at(times)
+    assert names[8] == "opto"
+    assert trace.max() == pytest.approx(2.0) and trace.min() == LASER_OFF_V
+    assert sim.rig.opto_at(np.array([start - 0.5]))[0] == LASER_OFF_V  # off between trials

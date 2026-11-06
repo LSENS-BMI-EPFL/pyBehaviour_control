@@ -1,6 +1,7 @@
 # Parity with the MATLAB version
 
-The port reproduces `behaviour_control_v2` (MATLAB, commit `cb6adff`). Output
+The port reproduces `behaviour_control_v2` (MATLAB, commit `c5ece74`, "Fix opto sessions
+stalling after trial 1 and add opto trace plot"; see the end of this page for how that commit was ported). Output
 files keep the same names, columns and binary layout. This page lists every
 place where behaviour is **intentionally kept although it looks wrong**, and
 every place where the Python version **intentionally differs**. Each item is
@@ -20,7 +21,6 @@ covered by a test.
 | K8 | When passive stimulation runs out, that trial is forced to **non-association** even if "Association" is ticked. | `planner.py` | `test_passive_trials_then_back_to_active` |
 | K9 | `light_prestim_delay` and `light_freq` are always 0 but still saved. | `trial.py` | |
 | K10 | Opto sessions drop light trials from the trial pool; the "Control" opto probability is saved but not used. | `planner.py` | `test_opto_pool_splits_each_type_by_its_probability` |
-| K11 | `grid_count` on non-opto rows of results_opto.csv is `trial_number − opto_count`, where opto_count starts at 1 (an off-by-one label, kept). | `modules/opto.py` | |
 | K12 | The opto amplitude field is labelled "mV" in MATLAB but multiplies a volt command; the Python window labels it V. Same number, same output. | `gui/opto_window.py` | |
 
 To change one of these, change the code *and* the test that pins it, and note it here.
@@ -40,7 +40,7 @@ To change one of these, change the code *and* the test that pins it, and note it
 | D9 | Stimulus session continuous with queued data. | Finite, start-triggered output per trial (same trigger line, same rate). | Equivalent output; simpler state. |
 | D10 | All weights 0 → MATLAB error mid-session. | Refuses to start with a message. | |
 | D11 | After an early lick, MATLAB re-queued the aborted opto vector *and* queued a new location, so the retry played the old location while results_opto.csv recorded the new one. | The retry reuses the aborted trial's location, and that is what is saved. | Saved location = stimulated location. |
-| D12 | Opto grids were initialised only if trial 1 was an opto trial (otherwise stale globals from a previous session were used). | Initialised at session start. | Bug fix. |
+| D12 | Opto grids were initialised only if trial 1 was an opto trial (otherwise stale globals from a previous session were used). Fixed in MATLAB c5ece74 too. | Initialised at session start. | Bug fix. |
 | D13 | Laser pulses placed by comparing float times (1-sample jitter between pulses). | Placed in whole samples. | Exact period. |
 | D14 | Galvo V/mm steps hard-coded per computer name; bregma table path hard-coded. | `opto.galvo_step_v_per_mm` and `opto.bregma_directory` in the rig file. | |
 | D15 | Coil calibration used its own pulse (`biphasic_hann_3ms`: second phase 5 samples shorter than the first), unlike the task's whisker pulse. | Calibrates the task's whisker waveform with the GUI duration and scaling factor. | The mT values hold for the pulse the mouse actually gets. |
@@ -81,3 +81,15 @@ close all; writetable(T, 'opto_grids.csv');
 - `results.csv`: same columns and order. `context_block` contains `NA` when unused; in pandas use `pd.read_csv(path, keep_default_na=False)` to keep it as text (MATLAB `readtable` already did).
 - `log_continuous.bin`: unchanged (float64, interleaved, 10 channels at 5 kHz). `pybehaviour.logger.read_log(path)` returns `(10, n_samples)`.
 - `session_config.json`: same keys as `handles2give`; directory fields are dropped as before.
+
+## MATLAB commit c5ece74 (opto fixes), ported 2026-11-06
+
+| MATLAB change | Python |
+|---|---|
+| `Opto_S` stopped before re-queuing each trial (sessions stalled after trial 1) | Already the case: `NiRig.arm_opto` stops the task before every re-arm. |
+| Errors in `update_parameters` printed and re-thrown instead of swallowed | Already the case: any error stops the control loop and is shown in the GUI. |
+| Grid initialised on the first opto trial, not only on trial 1 | Already the case (D12). |
+| `opto_count` starts at 0 (was 1) | Ported: non-opto `grid_count` = `trial_number − opto trials so far` (1, 2, 3, … for consecutive non-opto trials). Former K11 removed. |
+| "No Grid": non-opto trials keep the laser at its off level | Ported. **Also fixes a port bug:** Python used to keep the laser off on every non-opto trial. Like MATLAB, with a grid, non-opto trials now play the same pulse train with the galvos parked off the brain (AP −5, ML 5) as a light control; only "No Grid" keeps it off. `test_non_opto_trials_fire_the_laser_off_brain_with_a_grid`. |
+| Log channel ai16 is the opto laser command, plotted in opto sessions | Ported: ai16 is named `opto` in the rig files, and an "Opto laser (V)" live row appears in opto sessions. The live plots now downsample keeping peaks, so 4 ms laser and 2 ms camera pulses stay visible. |
+| `Detection_GUI.mlapp` re-saved | No code change (checked). |

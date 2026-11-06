@@ -14,7 +14,7 @@ main_input:            # lick sensor used for trial control
 
 log_input:             # everything written to log_continuous.bin
   channels: [Dev2/ai0, Dev2/ai1, Dev2/ai2, Dev2/ai3, Dev2/ai4, Dev2/ai5, Dev2/ai6, Dev2/ai7, Dev2/ai16, Dev2/ai17]
-  names:    [lick, galvo, trial_ttl, cam1, cam2, context, ttl1, ttl2, dummy1, dummy2]
+  names:    [lick, galvo, trial_ttl, cam1, cam2, context, ttl1, ttl2, opto, dummy2]   # ai16 = opto laser command
   terminal: DIFF
   rate: 5000
   chunk: 500

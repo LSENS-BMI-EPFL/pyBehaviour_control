@@ -45,6 +45,8 @@ so the MATLAB code keeps working too.
 | PdCO | TTL lines with each design | Same pulses as the TTL GUI preview |
 | Opto laser | Laser command vs trial TTL | Starts at the opto baseline after the trigger; -1 V when off; same shape as the preview |
 | Opto galvos | Galvo x/y on a grid session | Voltage = bregma + mm × V/mm step from the rig file; parked off-brain (AP -5, ML 5) on non-opto trials |
+| Opto non-opto trials | Laser command on non-opto trials | With a grid: the same pulse train, beam parked off-brain. With "No Grid": laser stays at -1 V (off) |
+| Opto trace | "Opto laser (V)" row during an opto session | Shows the laser command logged on ai16 (wire the laser command to ai16) |
 | Valve calibration | Tools ▸ Valve calibration, 50 openings, weigh | Same µL per opening as the MATLAB association-session method at the same opening time |
 | Sound calibration | Tools ▸ Sound calibration with the dB meter at the mouse's head | Same level as an auditory trial at the same amplitude and frequency (use max hold for the short task tone) |
 | Coil calibration | Tools ▸ Coil calibration with the teslameter, compare with a MATLAB calibration of the same coil | Same mT for the same pulse (expect small differences: MATLAB's calibration pulse was slightly different, see PARITY D15) |

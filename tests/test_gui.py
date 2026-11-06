@@ -503,3 +503,17 @@ def test_keyboard_still_changes_values(app, window):
     v = spin.value()
     QTest.keyClick(spin, QtCore.Qt.Key_Up)
     assert spin.value() == v + spin.singleStep()
+
+
+def test_opto_row_only_in_opto_sessions(app, window):
+    assert "opto" not in window._live_visible
+    window.b.widgets["opto_session"].setChecked(True)
+    assert "opto" in window._live_visible
+    window.b.widgets["opto_session"].setChecked(False)
+    assert "opto" not in window._live_visible
+
+
+def test_short_pulses_survive_plot_downsampling(app, window):
+    for key in ("opto", "cam1", "lick"):
+        opts = window.curves[key].opts
+        assert opts["autoDownsample"] and opts["downsampleMethod"] == "peak"

@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2180" height="1849" viewBox="0 0 2180 1849">
+  <rect x="0" y="0" width="2180" height="1849" fill="#ffffff"/>
+  <text x="40.0" y="52.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">Behaviour rig wiring: SV-07-054</text>
+  <text x="40.0" y="84.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">NI channels used by pybehaviour / behaviour_control_v2, drawn from the rig file (rigs/SV-07-054.yaml). Device names (Dev1, Dev2…) must match NI MAX.</text>
+  <rect x="400.0" y="150.0" width="440.0" height="502.0" rx="8" fill="#eef2f8" stroke="#9fb0c8" stroke-width="2"/>
+  <text x="418.0" y="184.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">Dev1  ·  Board 1  ·  PCI-6221*</text>
+  <text x="418.0" y="208.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Lick input, valve, triggers, camera clock</text>
+  <text x="418.0" y="245.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">ANALOG INPUTS</text>
+  <circle cx="400.0" cy="275.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="280.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI0</text>
+  <text x="492.0" y="280.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Lick sensor (trial control)</text>
+  <text x="418.0" y="317.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">ANALOG OUTPUTS</text>
+  <circle cx="400.0" cy="347.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO0</text>
+  <text x="492.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Reward valve</text>
+  <text x="418.0" y="389.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">DIGITAL OUTPUTS (PORT 0)</text>
+  <circle cx="840.0" cy="419.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="424.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.0</text>
+  <text x="492.0" y="424.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Stimulus trigger (trial start)</text>
+  <circle cx="840.0" cy="461.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.1</text>
+  <text x="492.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Reward trigger</text>
+  <circle cx="840.0" cy="503.0" r="9" fill="#ffffff" stroke="#8a887f" stroke-width="2"/>
+  <text x="426.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">P0.2</text>
+  <text x="492.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="italic" fill="#8a887f" text-anchor="start">Camera arming (not driven)</text>
+  <text x="418.0" y="545.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">TRIGGERS / COUNTERS</text>
+  <circle cx="400.0" cy="575.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="580.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">CTR0</text>
+  <text x="492.0" y="580.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera frame clock (CTR0 out, PFI12)</text>
+  <circle cx="840.0" cy="617.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="426.0" y="622.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">PFI1</text>
+  <text x="492.0" y="622.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Valve start trigger (in)</text>
+  <rect x="1310.0" y="150.0" width="440.0" height="1006.0" rx="8" fill="#eef2f8" stroke="#9fb0c8" stroke-width="2"/>
+  <text x="1328.0" y="184.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">Dev2  ·  Board 2  ·  PCIe-6343*</text>
+  <text x="1328.0" y="208.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Stimuli, PdCO, context, continuous log</text>
+  <text x="1328.0" y="245.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">ANALOG INPUTS  → LOG_CONTINUOUS.BIN</text>
+  <circle cx="1310.0" cy="275.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="280.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI0</text>
+  <text x="1402.0" y="280.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Lick, copy for the log</text>
+  <circle cx="1750.0" cy="317.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="322.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI1</text>
+  <text x="1402.0" y="322.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo position / WF exposure</text>
+  <circle cx="1310.0" cy="359.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="364.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI2</text>
+  <text x="1402.0" y="364.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Trial start TTL</text>
+  <circle cx="1750.0" cy="401.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="406.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI3</text>
+  <text x="1402.0" y="406.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera 1 exposure</text>
+  <circle cx="1750.0" cy="443.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="448.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI4</text>
+  <text x="1402.0" y="448.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera 2 exposure / strobe</text>
+  <circle cx="1750.0" cy="485.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="490.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI5</text>
+  <text x="1402.0" y="490.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Context TTL, copy</text>
+  <circle cx="1750.0" cy="527.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="532.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI6</text>
+  <text x="1402.0" y="528.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO TTL ch1, copy</text>
+  <text x="1402.0" y="543.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">coil calibration: teslameter here instead</text>
+  <rect x="1553.1" y="515.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1573.1" y="528.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="569.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="574.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI7</text>
+  <text x="1402.0" y="574.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO TTL ch2, copy</text>
+  <rect x="1553.1" y="561.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1573.1" y="574.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="611.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="616.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AI16</text>
+  <text x="1402.0" y="616.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Opto laser command, copy</text>
+  <rect x="1600.2" y="603.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1620.2" y="616.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="653.0" r="9" fill="#ffffff" stroke="#8a887f" stroke-width="2"/>
+  <text x="1336.0" y="658.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">AI17</text>
+  <text x="1402.0" y="658.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="italic" fill="#8a887f" text-anchor="start">spare (logged)</text>
+  <text x="1328.0" y="695.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">ANALOG OUTPUTS</text>
+  <circle cx="1750.0" cy="725.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="730.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO0</text>
+  <text x="1402.0" y="730.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Whisker stimulus</text>
+  <circle cx="1750.0" cy="767.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="772.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO1</text>
+  <text x="1402.0" y="772.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Auditory stimulus</text>
+  <circle cx="1750.0" cy="809.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="814.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO2</text>
+  <text x="1402.0" y="814.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Light stimulus</text>
+  <rect x="1521.8" y="801.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1541.8" y="814.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <text x="1328.0" y="851.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">DIGITAL OUTPUTS (PORT 0)</text>
+  <circle cx="1750.0" cy="881.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="886.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.0</text>
+  <text x="1402.0" y="886.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera frames during trials</text>
+  <circle cx="1750.0" cy="923.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="928.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.1</text>
+  <text x="1402.0" y="928.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">ScanImage trigger (2P)</text>
+  <circle cx="1750.0" cy="965.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="970.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.2</text>
+  <text x="1402.0" y="970.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Context TTL</text>
+  <circle cx="1750.0" cy="1007.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1012.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.3</text>
+  <text x="1402.0" y="1012.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO TTL ch1 (ON pulse)</text>
+  <rect x="1592.3" y="999.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1612.3" y="1012.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="1049.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1054.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">P0.4</text>
+  <text x="1402.0" y="1054.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO TTL ch2 (OFF pulse)</text>
+  <rect x="1600.2" y="1041.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1620.2" y="1054.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <text x="1328.0" y="1091.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">TRIGGERS / COUNTERS</text>
+  <circle cx="1310.0" cy="1121.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1126.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">PFI0</text>
+  <text x="1402.0" y="1126.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Stimulus start trigger (in)</text>
+  <rect x="1310.0" y="1204.0" width="440.0" height="316.0" rx="8" fill="#eef2f8" stroke="#9fb0c8" stroke-width="2" stroke-dasharray="10,6"/>
+  <text x="1328.0" y="1238.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">Dev3  ·  Board 3  ·  opto rigs*</text>
+  <text x="1328.0" y="1262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Optogenetics: laser and galvo mirrors  ·  not enabled on this rig</text>
+  <text x="1328.0" y="1299.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">ANALOG OUTPUTS</text>
+  <circle cx="1750.0" cy="1329.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1334.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO4</text>
+  <text x="1402.0" y="1334.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Laser command</text>
+  <rect x="1513.9" y="1321.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1533.9" y="1334.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="1371.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1376.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO5</text>
+  <text x="1402.0" y="1376.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo X</text>
+  <rect x="1466.9" y="1363.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1486.9" y="1376.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <circle cx="1750.0" cy="1413.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1418.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">AO6</text>
+  <text x="1402.0" y="1418.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo Y</text>
+  <rect x="1466.9" y="1405.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1486.9" y="1418.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <text x="1328.0" y="1455.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" font-style="normal" fill="#8a887f" text-anchor="start">TRIGGERS / COUNTERS</text>
+  <circle cx="1310.0" cy="1485.0" r="9" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="1336.0" y="1490.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">PFI0</text>
+  <text x="1402.0" y="1490.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Opto start trigger (in)</text>
+  <rect x="1592.3" y="1477.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="1612.3" y="1490.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <text x="282.0" y="280.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="end">Piezo lick sensor</text>
+  <polyline points="290.0,275.0 390.0,275.0" fill="none" stroke="#2a78d6" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="390.0,275.0 381.0,269.6 381.0,280.4" fill="#2a78d6"/>
+  <text x="282.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="end">Reward valve</text>
+  <polyline points="290.0,347.0 390.0,347.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="290.0,347.0 299.0,341.6 299.0,352.4" fill="#d9581f"/>
+  <text x="282.0" y="580.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="end">Behaviour cameras (frame trigger)</text>
+  <polyline points="290.0,575.0 390.0,575.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="290.0,575.0 299.0,569.6 299.0,580.4" fill="#d9581f"/>
+  <text x="1968.0" y="322.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo position / WF camera</text>
+  <polyline points="1760.0,317.0 1960.0,317.0" fill="none" stroke="#2a78d6" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1760.0,317.0 1769.0,311.6 1769.0,322.4" fill="#2a78d6"/>
+  <text x="1968.0" y="406.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera 1 exposure out</text>
+  <polyline points="1760.0,401.0 1960.0,401.0" fill="none" stroke="#2a78d6" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1760.0,401.0 1769.0,395.6 1769.0,406.4" fill="#2a78d6"/>
+  <text x="1968.0" y="448.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Camera 2 strobe out</text>
+  <polyline points="1760.0,443.0 1960.0,443.0" fill="none" stroke="#2a78d6" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1760.0,443.0 1769.0,437.6 1769.0,448.4" fill="#2a78d6"/>
+  <text x="1968.0" y="730.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Coil amplifier (whisker)</text>
+  <polyline points="1760.0,725.0 1960.0,725.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,725.0 1951.0,719.6 1951.0,730.4" fill="#d9581f"/>
+  <text x="1968.0" y="772.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Audio mixer / speaker</text>
+  <polyline points="1760.0,767.0 1960.0,767.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,767.0 1951.0,761.6 1951.0,772.4" fill="#d9581f"/>
+  <text x="1968.0" y="814.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Light stimulus (LED driver)</text>
+  <polyline points="1760.0,809.0 1960.0,809.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,809.0 1951.0,803.6 1951.0,814.4" fill="#d9581f"/>
+  <text x="1968.0" y="886.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Cameras (trial-locked frames)</text>
+  <polyline points="1760.0,881.0 1960.0,881.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,881.0 1951.0,875.6 1951.0,886.4" fill="#d9581f"/>
+  <text x="1968.0" y="928.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">ScanImage (2P)</text>
+  <polyline points="1760.0,923.0 1960.0,923.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,923.0 1951.0,917.6 1951.0,928.4" fill="#d9581f"/>
+  <text x="1968.0" y="970.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Context (to other systems)</text>
+  <polyline points="1760.0,965.0 1960.0,965.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,965.0 1951.0,959.6 1951.0,970.4" fill="#d9581f"/>
+  <text x="1968.0" y="1012.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO light source, ch1</text>
+  <polyline points="1760.0,1007.0 1960.0,1007.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,1007.0 1951.0,1001.6 1951.0,1012.4" fill="#d9581f"/>
+  <text x="1968.0" y="1054.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">PdCO light source, ch2</text>
+  <polyline points="1760.0,1049.0 1960.0,1049.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,1049.0 1951.0,1043.6 1951.0,1054.4" fill="#d9581f"/>
+  <text x="1968.0" y="1334.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Laser driver</text>
+  <polyline points="1760.0,1329.0 1960.0,1329.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,1329.0 1951.0,1323.6 1951.0,1334.4" fill="#d9581f"/>
+  <text x="1968.0" y="1376.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo mirror X</text>
+  <polyline points="1760.0,1371.0 1960.0,1371.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,1371.0 1951.0,1365.6 1951.0,1376.4" fill="#d9581f"/>
+  <text x="1968.0" y="1418.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Galvo mirror Y</text>
+  <polyline points="1760.0,1413.0 1960.0,1413.0" fill="none" stroke="#d9581f" stroke-width="2.2" stroke-linejoin="round"/>
+  <polygon points="1960.0,1413.0 1951.0,1407.6 1951.0,1418.4" fill="#d9581f"/>
+  <circle cx="1823.0" cy="965.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1823.0,965.0 1823.0,485.0 1760.0,485.0" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="1760.0,485.0 1769.0,479.6 1769.0,490.4" fill="#1b1b1b"/>
+  <circle cx="1806.0" cy="1007.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1806.0,1007.0 1806.0,527.0 1760.0,527.0" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="1760.0,527.0 1769.0,521.6 1769.0,532.4" fill="#1b1b1b"/>
+  <circle cx="1789.0" cy="1049.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1789.0,1049.0 1789.0,569.0 1760.0,569.0" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="1760.0,569.0 1769.0,563.6 1769.0,574.4" fill="#1b1b1b"/>
+  <circle cx="1772.0" cy="1329.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1772.0,1329.0 1772.0,611.0 1760.0,611.0" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="1760.0,611.0 1769.0,605.6 1769.0,616.4" fill="#1b1b1b"/>
+  <circle cx="345.0" cy="275.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="345.0,275.0 345.0,120.0 1206.6,120.0 1206.6,275.0 1300.0,275.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <polygon points="1300.0,275.0 1291.0,269.6 1291.0,280.4" fill="#1b1b1b"/>
+  <text x="357.0" y="112.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">piezo signal split to both boards (T connector)</text>
+  <polyline points="850.0,461.0 874.0,461.0 874.0,617.0 850.0,617.0" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="850.0,617.0 859.0,611.6 859.0,622.4" fill="#1b1b1b"/>
+  <text x="882.0" y="543.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">jumper on the terminal block</text>
+  <polyline points="850.0,419.0 1103.2,419.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <polyline points="1103.2,359.0 1103.2,1485.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <circle cx="1103.2" cy="359.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1103.2,359.0 1300.0,359.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <polygon points="1300.0,359.0 1291.0,353.6 1291.0,364.4" fill="#1b1b1b"/>
+  <circle cx="1103.2" cy="1121.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1103.2,1121.0 1300.0,1121.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <polygon points="1300.0,1121.0 1291.0,1115.6 1291.0,1126.4" fill="#1b1b1b"/>
+  <circle cx="1103.2" cy="1485.0" r="4.5" fill="#1b1b1b"/>
+  <polyline points="1103.2,1485.0 1300.0,1485.0" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round"/>
+  <polygon points="1300.0,1485.0 1291.0,1479.6 1291.0,1490.4" fill="#1b1b1b"/>
+  <text x="858.0" y="411.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">trial start trigger to every board</text>
+  <text x="40.0" y="1578.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" font-style="normal" fill="#0b0b0b" text-anchor="start">Legend</text>
+  <polyline points="40.0,1601.0 100.0,1601.0" fill="none" stroke="#d9581f" stroke-width="3" stroke-linejoin="round"/>
+  <polygon points="106.0,1601.0 97.0,1595.6 97.0,1606.4" fill="#d9581f"/>
+  <text x="120.0" y="1606.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Output to a device (arrow: direction of the signal)</text>
+  <polyline points="40.0,1627.0 100.0,1627.0" fill="none" stroke="#2a78d6" stroke-width="3" stroke-linejoin="round"/>
+  <polygon points="106.0,1627.0 97.0,1621.6 97.0,1632.4" fill="#2a78d6"/>
+  <text x="120.0" y="1632.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Input from a device</text>
+  <polyline points="40.0,1653.0 100.0,1653.0" fill="none" stroke="#1b1b1b" stroke-width="3" stroke-linejoin="round"/>
+  <polygon points="106.0,1653.0 97.0,1647.6 97.0,1658.4" fill="#1b1b1b"/>
+  <text x="120.0" y="1658.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">Cable between boards or back into the log (dot = branch)</text>
+  <circle cx="50.0" cy="1679.0" r="8" fill="#3c4a5e" stroke="#3c4a5e" stroke-width="2"/>
+  <text x="70.0" y="1684.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#0b0b0b" text-anchor="start">used channel</text>
+  <circle cx="190.0" cy="1679.0" r="8" fill="#ffffff" stroke="#8a887f" stroke-width="2"/>
+  <text x="210.0" y="1684.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">spare / reserved</text>
+  <rect x="350.0" y="1666.0" width="40.0" height="18.0" rx="9" fill="#fff1c2" stroke="#c99700" stroke-width="1"/>
+  <text x="370.0" y="1679.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="bold" font-style="normal" fill="#6b5000" text-anchor="middle">NEW</text>
+  <text x="398.0" y="1684.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">not in the old BehaviorSetupConnectic diagram</text>
+  <rect x="760.0" y="1666.0" width="40.0" height="18.0" rx="4" fill="none" stroke="#9fb0c8" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="808.0" y="1684.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">board only on rigs with that option</text>
+  <text x="40.0" y="1724.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#52514e" text-anchor="start">* Card models as on the SV-07 rigs (6221, 6343); other rigs may differ. Rename devices in NI MAX or edit the rig file.</text>
+  <text x="40.0" y="1745.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Not set in software, drawn as wired in the lab (check on each rig): the piezo split to both boards, the digital outputs</text>
+  <text x="40.0" y="1766.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">looped back to the logged inputs (context, PdCO), the trial start trigger to the opto board, the laser command copy to AI16.</text>
+  <text x="40.0" y="1787.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Unused camera exposure inputs: tie to AI GND. Coil calibration: connect the teslameter instead of the PdCO ch1 copy. Outputs can also be copied to the ephys NI board.</text>
+  <text x="40.0" y="1808.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#52514e" text-anchor="start">Regenerate after changing the rig file:  uv run python -m pybehaviour.wiring rigs/SV-07-054.yaml</text>
+</svg>

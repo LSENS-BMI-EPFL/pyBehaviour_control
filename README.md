@@ -65,6 +65,16 @@ the title.
 - `modules/`: optional features plugged in through hooks (optogenetics, PdCO, context).
   Ticking "Optogenetics" or "PdCO" opens its settings window.
 
+## Wiring
+
+[docs/wiring/SV-07-054.png](docs/wiring/SV-07-054.png) shows which NI channel goes where
+(boards, external devices, cables between boards). It is drawn from the rig file;
+after changing one, regenerate it:
+
+```
+uv run python -m pybehaviour.wiring rigs/<rig>.yaml     # docs/wiring/<rig>.svg + .png
+```
+
 ## Presets and rig defaults
 
 Each rig starts from its own defaults, and each person or task can keep a

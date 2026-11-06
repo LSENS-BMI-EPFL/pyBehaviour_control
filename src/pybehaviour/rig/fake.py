@@ -93,8 +93,10 @@ class FakeRig:
         self.log_rate = log_rate
         self.opto_rate = opto_rate
         self.opto_armed: np.ndarray | None = None
+        self._opto_playing: tuple[float, np.ndarray] | None = None  # (start time, laser command)
+        self._opto_idle = 0.0  # laser command when nothing plays (-1 V once opto has been used)
         self.realtime = realtime
-        self.log_channel_names = ["lick", "galvo", "trial_ttl", "cam1", "cam2", "context", "ttl1", "ttl2", "dummy1", "dummy2"]
+        self.log_channel_names = ["lick", "galvo", "trial_ttl", "cam1", "cam2", "context", "ttl1", "ttl2", "opto", "dummy2"]
 
         self.t = 0.0  # time of the last acquired sample
         self.calls: list[tuple] = []  # (time, name, *args) for assertions
@@ -151,7 +153,17 @@ class FakeRig:
         lines = self.lines_at(times)
         zeros = np.zeros(n)
         return np.vstack([lick, zeros, 5.0 * lines[0], zeros, zeros, 5.0 * lines[1],
-                          5.0 * lines[2], 5.0 * lines[3], zeros, zeros])
+                          5.0 * lines[2], 5.0 * lines[3], self.opto_at(times), zeros])
+
+    def opto_at(self, times: np.ndarray) -> np.ndarray:
+        """Laser command at the given times, as logged on ai16."""
+        out = np.full(times.size, self._opto_idle)
+        if self._opto_playing is not None:
+            start, laser = self._opto_playing
+            idx = np.round((times - start) * self.opto_rate).astype(int)
+            ok = (idx >= 0) & (idx < laser.size)
+            out[ok] = laser[idx[ok]]
+        return out
 
     def lines_at(self, times: np.ndarray) -> np.ndarray:
         """State of (stim trigger, context, ttl1, ttl2) at the given times, shape (4, n)."""
@@ -179,6 +191,9 @@ class FakeRig:
         if self.stim_armed is not None:
             self.stim_running_until = self.t + self.stim_armed[0].shape[0] / self.stim_rate
             self.stim_armed = None
+        if self.opto_armed is not None:  # same trigger starts the opto output
+            self._opto_playing = (self.t, self.opto_armed[:, 0].copy())
+            self.opto_armed = None
         self._log("trigger_stim")
         self._record_lines()
         return self.t
@@ -221,10 +236,14 @@ class FakeRig:
     # opto -----------------------------------------------------------------
     def arm_opto(self, out):
         self.opto_armed = out
+        self._opto_idle = -1.0
         self._log("arm_opto", float(out[:, 0].max()), float(out[0, 1]), float(out[0, 2]))
 
     def abort_opto(self):
         self.opto_armed = None
+        if self._opto_playing is not None:  # stop where it is: laser back to off
+            start, laser = self._opto_playing
+            self._opto_playing = (start, laser[: max(0, int(round((self.t - start) * self.opto_rate)))])
         self._log("abort_opto")
 
     def play_opto_now(self, out):

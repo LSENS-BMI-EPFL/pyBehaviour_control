@@ -28,7 +28,7 @@ class LogInput:
         "Dev2/ai5", "Dev2/ai6", "Dev2/ai7", "Dev2/ai16", "Dev2/ai17",
     ])
     names: list[str] = field(default_factory=lambda: [
-        "lick", "galvo", "trial_ttl", "cam1", "cam2", "context", "ttl1", "ttl2", "dummy1", "dummy2",
+        "lick", "galvo", "trial_ttl", "cam1", "cam2", "context", "ttl1", "ttl2", "opto", "dummy2",  # ai16: opto laser command
     ])
     terminal: str = "DIFF"
     rate: float = 5000

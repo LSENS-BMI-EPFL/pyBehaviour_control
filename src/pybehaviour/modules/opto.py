@@ -354,7 +354,7 @@ class OptoModule(Module):
         self.folder: Path | None = None
         self.bregma = (0.0, 0.0)
         self.sequencer: GridSequencer | None = None
-        self.opto_count = 1
+        self.opto_count = 0  # opto trials delivered so far (MATLAB c5ece74: starts at 0)
         self.target: OptoTarget | None = None  # current trial, read by the opto window
         self._fs = 100_000.0
 
@@ -375,7 +375,7 @@ class OptoModule(Module):
             self.bregma = get_bregma(self.bregma_directory, ctx.params.mouse_name)
         ap, ml = stim_grid(self.config.grid, self.config.ap, self.config.ml)
         self.sequencer = GridSequencer(self.config.grid, ap, ml, self.rng)
-        self.opto_count = 1
+        self.opto_count = 0
         info = self.config.opto_info(self.setup_name)
         info.update(bregma_x=self.bregma[0], bregma_y=self.bregma[1], galvo_step=list(self.galvo_step),
                     grid_AP=ap.tolist(), grid_ML=ml.tolist())
@@ -401,7 +401,10 @@ class OptoModule(Module):
                                 -1.0, vx, vy, trial_kind(trial), b)
         self.target = target
         laser = opto_waveform(self.config, params.trial_duration / 1000, self._fs)
-        if not target.is_opto:
+        if not target.is_opto and self.config.grid == "No Grid":
+            # Non-opto trials play the same train with the galvos parked off the brain (light
+            # control). Without a grid there is nowhere to aim away, so the laser stays off
+            # (MATLAB update_parameters, c5ece74).
             laser = np.full(laser.size, LASER_OFF_V)
         out = np.column_stack([laser, np.full(laser.size, target.volt_x), np.full(laser.size, target.volt_y)])
         self.rig.arm_opto(out)

@@ -493,9 +493,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.live.ci.layout.setSpacing(3)
         self.live_plots: dict[str, pg.PlotItem] = {}
         self.live_labels: dict[str, pg.LabelItem] = {}
-        # key, row label, y range (None = set from the threshold), relative height
+        # key, row label, y range (None = set from the threshold, "auto" = fit the data), relative height
         self.live_specs = [("lick", "Lick (V)", None, 4), ("trial_ttl", "Trial", (-0.5, 5.5), 1.4),
-                           ("ttl", "PdCO TTL", (-0.5, 5.5), 1.2), ("cam1", "Camera 1", (-0.5, 5.5), 1),
+                           ("ttl", "PdCO TTL", (-0.5, 5.5), 1.2), ("opto", "Opto laser (V)", "auto", 1.2),
+                           ("cam1", "Camera 1", (-0.5, 5.5), 1),
                            ("cam2", "Camera 2", (-0.5, 5.5), 1), ("galvo", "Galvo (V)", (-2, 3), 1.2)]
         first = None
         for key, label, ylim, _ in self.live_specs:
@@ -503,7 +504,9 @@ class MainWindow(QtWidgets.QMainWindow):
             theme.style_plot(p)
             p.setMouseEnabled(False, False)
             p.getAxis("left").setWidth(42)
-            if ylim:
+            if ylim == "auto":
+                p.enableAutoRange(axis="y")  # laser amplitudes range from 0.1 V to several volts
+            elif ylim:
                 p.setYRange(*ylim, padding=0)
             if first is None:
                 first = p
@@ -522,7 +525,12 @@ class MainWindow(QtWidgets.QMainWindow):
             "cam1": self.live_plots["cam1"].plot(pen=ink),
             "cam2": self.live_plots["cam2"].plot(pen=ink),
             "galvo": self.live_plots["galvo"].plot(pen=ink),
+            "opto": self.live_plots["opto"].plot(pen=theme.pen(theme.AUDITORY, 1.5)),
         }
+        for curve in self.curves.values():
+            # keep min and max of each pixel column: short pulses (4 ms laser, 2 ms camera) stay visible
+            curve.setDownsampling(auto=True, method="peak")
+            curve.setClipToView(True)
         # series keys live in the row label, so no legend covers the traces
         key = self._key
         self.live_labels["trial_ttl"].setText("Trial" + key(theme.TEXT, "trial") + key(theme.CONTEXT, "context"),
@@ -721,6 +729,8 @@ class MainWindow(QtWidgets.QMainWindow):
         show = {"lick", "trial_ttl", "cam1", "cam2"}
         if p.ttl_session:
             show.add("ttl")
+        if p.opto_session:
+            show.add("opto")  # laser command logged on ai16 (MATLAB c5ece74)
         if p.twophoton_session or p.threephoton_session:
             show.add("galvo")
         visible = tuple(k for k, *_ in self.live_specs if k in show)
@@ -1261,13 +1271,11 @@ class MainWindow(QtWidgets.QMainWindow):
         data = self.session.logger.snapshot()
         names = self.session.rig.log_channel_names
         t = np.arange(data.shape[1]) / self.session.rig.log_rate
-        step = max(1, data.shape[1] // 2500)
-        t = t[::step]
 
-        def ch(name):
-            return data[names.index(name), ::step] if name in names else None
+        def ch(name):  # full resolution; the curves downsample keeping peaks
+            return data[names.index(name)] if name in names else None
 
-        for key in ("trial_ttl", "cam1", "cam2", "galvo", "ttl1", "ttl2"):
+        for key in ("trial_ttl", "cam1", "cam2", "galvo", "ttl1", "ttl2", "opto"):
             y = ch(key)
             if y is not None:
                 self.curves[key].setData(t, y)
