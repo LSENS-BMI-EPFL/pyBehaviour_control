@@ -3,9 +3,10 @@
     pybehaviour                            # the rig file used last time (built-in rig settings if none yet)
     pybehaviour --rig rigs/my_rig.yaml     # this rig file (remembered for next time)
     pybehaviour --sim                      # no hardware: simulated mouse licking at random
+    pybehaviour --config path/to/session_config.json   # task settings of a previous session (or a preset file)
 
 A rig file can also be loaded from the GUI: Settings ▸ Load rig file…
-Within a rig, the last used preset opens automatically.
+Without --config, the preset used last on this rig opens automatically.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from pathlib import Path
 def build_window(rig_file: Path | None = None, sim: bool = False, config: Path | None = None,
                  data_dir: Path | None = None, load_rig=None):
     """The main window for a rig file (None: built-in rig settings) or the simulation."""
-    from .app_state import default_presets_dir
+    from .app_state import shared_presets_dir
     from .gui.main_window import MainWindow
     from .presets import PresetStore, startup_params
     from .rig.config import RigConfig
@@ -44,7 +45,7 @@ def build_window(rig_file: Path | None = None, sim: bool = False, config: Path |
             title = f"[{cfg.name}]"
         else:
             cfg = RigConfig()
-            cfg.presets_directory = str(default_presets_dir())
+            cfg.presets_directory = str(shared_presets_dir())
             title = "[built-in rig settings: Settings ▸ Load rig file…]"
 
         def rig_factory():
@@ -52,15 +53,24 @@ def build_window(rig_file: Path | None = None, sim: bool = False, config: Path |
 
         data_dir = data_dir or Path(cfg.behaviour_directory)
 
-    store = PresetStore(cfg.presets_path())
-    rig_defaults = {"behaviour_directory": str(data_dir), **cfg.defaults}
-    # rig file defaults → last used preset → --config file (later wins)
-    defaults, preset = startup_params(rig_defaults, store, config)
+    store = PresetStore(cfg.presets_path(), key=f"{cfg.name}|{cfg.presets_path()}")
+    rig_defaults = {"behaviour_directory": cfg.behaviour_directory, **cfg.defaults}
+    # rig file → last used preset, or the --config file instead (rig settings always from the rig file)
+    problem = ""
+    try:
+        defaults, preset = startup_params(rig_defaults, store, config)
+    except Exception as exc:  # unreadable --config file or preset: open with the rig defaults, and say so
+        problem = f"Could not load {config or 'the last used preset'}:\n{exc}"
+        defaults, preset = startup_params(rig_defaults, None)
     base, _ = startup_params(rig_defaults, None)
-    if data_dir_override:
-        defaults = defaults.copy(behaviour_directory=str(data_dir_override))
+    if data_dir_override or sim:
+        defaults = defaults.copy(behaviour_directory=str(data_dir))
+        base = base.copy(behaviour_directory=str(data_dir))
     win = MainWindow(rig_factory, defaults, title, rig_config=cfg, presets=store, preset=preset,
-                     rig_defaults=base, load_rig=load_rig)
+                     rig_defaults=base, load_rig=load_rig, load_mouse=config is None or bool(problem))
+    if config is not None and not problem:
+        win.online_text.setText(f"Settings loaded from {Path(config).name}")
+    win.startup_problem = problem
     win.resize(1800, 1050)
     return win
 
@@ -107,6 +117,9 @@ def main(argv=None) -> int:
     windows.append(build_window(rig_file, args.sim, args.config, args.data_dir, load_rig=load_rig))
     windows[0].show()
     tag_taskbar_window(windows[0])  # taskbar icon + Pin to taskbar (Windows)
+    if windows[0].startup_problem:
+        print(windows[0].startup_problem, file=sys.stderr)
+        QtWidgets.QMessageBox.warning(windows[0], "Settings not loaded", windows[0].startup_problem)
     return app.exec()
 
 

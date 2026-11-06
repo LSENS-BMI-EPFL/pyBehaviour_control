@@ -5,7 +5,7 @@
 Every task setting, with the name used in:
 
 - the rig file, under `defaults:` (starting values for that rig),
-- presets (`rigs/presets/<rig>/<name>.json`, under `"params"`),
+- presets (`presets/<name>.json`, under `"params"`; not the rig settings),
 - `session_config.json` (same names as the MATLAB `handles2give`).
 
 In the GUI, hover over a field: the tooltip ends with its setting name. To build the block from the
@@ -29,7 +29,7 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 | Setting name | GUI label | Unit | Default | Description |
 |---|---|---|---|---|
 | `mouse_name` | Mouse name |  | MPXXX | Mouse ID; used in folder and file names. |
-| `behaviour_directory` | Data folder |  | "" | Root folder for session data: `<folder>/<mouse>/<mouse>_<date>_<time>`. |
+| `behaviour_directory` | Data folder |  | "" | Root folder for session data: `<folder>/<mouse>/<mouse>_<date>_<time>`. Rig setting: top-level `behaviour_directory:` in the rig file, never in presets. |
 | `behaviour_type` | Behaviour type |  | free_licking | Training stage label, saved for analysis (e.g. whisker_psy). |
 | `date` | Date |  | "" | Set automatically at session start. Never stored in presets. |
 | `session_time` |  |  | "" | Set automatically at session start. Never stored in presets. |
@@ -102,19 +102,19 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 
 | Setting name | GUI label | Unit | Default | Description |
 |---|---|---|---|---|
-| `wh_stim_duration` | Duration | ms | 3 | Biphasic pulse duration. |
-| `wh_scaling_factor` | Scaling factor |  | 0.9 | Amplitude of the return phase relative to the first. |
+| `wh_stim_duration` | Duration | ms | 3 | Biphasic pulse duration. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_scaling_factor` | Scaling factor |  | 0.9 | Amplitude of the return phase relative to the first. Mouse setting: remembered per mouse and rig, not in presets. |
 | `wh_stim_amp_range` | Several amplitudes | on/off | false | Use amplitudes #1–#5 (psychometric); off = #1 only. |
-| `wh_stim_amp_1` | Amplitude (V) #1 | V | 3 | Coil command amplitude. |
-| `wh_stim_amp_2` | Amplitude (V) #2 | V | 0 | Coil command amplitude. |
-| `wh_stim_amp_3` | Amplitude (V) #3 | V | 0 | Coil command amplitude. |
-| `wh_stim_amp_4` | Amplitude (V) #4 | V | 0 | Coil command amplitude. |
-| `wh_stim_amp_5` | Amplitude (V) #5 | V | 0 | Coil command amplitude. |
-| `wh_stim_amp_mT_1` | Amplitude (mT) #1 | mT | 30 | Field for that amplitude (from coil calibration); saved, not used for output. |
-| `wh_stim_amp_mT_2` | Amplitude (mT) #2 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. |
-| `wh_stim_amp_mT_3` | Amplitude (mT) #3 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. |
-| `wh_stim_amp_mT_4` | Amplitude (mT) #4 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. |
-| `wh_stim_amp_mT_5` | Amplitude (mT) #5 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. |
+| `wh_stim_amp_1` | Amplitude (V) #1 | V | 3 | Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_2` | Amplitude (V) #2 | V | 0 | Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_3` | Amplitude (V) #3 | V | 0 | Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_4` | Amplitude (V) #4 | V | 0 | Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_5` | Amplitude (V) #5 | V | 0 | Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_mT_1` | Amplitude (mT) #1 | mT | 30 | Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_mT_2` | Amplitude (mT) #2 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_mT_3` | Amplitude (mT) #3 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_mT_4` | Amplitude (mT) #4 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets. |
+| `wh_stim_amp_mT_5` | Amplitude (mT) #5 | mT | 0 | Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets. |
 | `wh_stim_weight_1` | Weight #1 |  | 10 | Trials of this amplitude per block. |
 | `wh_stim_weight_2` | Weight #2 |  | 0 | Trials of this amplitude per block. |
 | `wh_stim_weight_3` | Weight #3 |  | 0 | Trials of this amplitude per block. |
@@ -162,7 +162,7 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 
 | Setting name | GUI label | Unit | Default | Description |
 |---|---|---|---|---|
-| `reward_valve_duration` | Valve opening | ms | 50 | Valve open time per reward (see Tools ▸ Valve calibration). |
+| `reward_valve_duration` | Valve opening | ms | 50 | Valve open time per reward (see Tools ▸ Valve calibration). Rig setting: rig file `defaults:`, never in presets. |
 | `reward_delay_flag` | Reward delay | on/off | false |  |
 | `reward_delay_time` | Reward delay | ms | 0 | Delay before the valve opens. |
 | `partial_reward_flag` | Partial reward | on/off | false |  |
@@ -177,11 +177,11 @@ On/off settings take `true` / `false`. Values not listed keep the default below.
 |---|---|---|---|---|
 | `context_flag` | Context task | on/off | false | Pink / brown noise blocks; whisker reward follows the mouse's rewarded context. |
 | `context_block_size` | Max same-context blocks |  | 1 | Maximum consecutive blocks of the same context. |
-| `context_table_directory` | Context table folder |  | "" | Folder with rewarded_context.csv. Not saved in session_config.json. |
-| `bckg_noise_directory` | Noise folder |  | "" | Folder with pink_noise.wav and brown_noise.wav. Not saved in session_config.json. |
+| `context_table_directory` | Context table folder |  | "" | Folder with rewarded_context.csv (Browse… picks the file). Not saved in session_config.json. |
+| `bckg_noise_directory` | Noise folder |  | "" | Folder with pink_noise.wav and brown_noise.wav (Browse… picks the folder). Not saved in session_config.json. |
 | `context_sound_on` | Play background noise | on/off | true |  |
-| `pink_noise_gain_db` | Pink noise gain | dB | 0 | Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session. |
-| `brown_noise_gain_db` | Brown noise gain | dB | 0 | Same for brown_noise.wav. |
+| `pink_noise_gain_db` | Pink noise gain | dB | 0 | Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session. Rig setting: rig file `defaults:`, never in presets. |
+| `brown_noise_gain_db` | Brown noise gain | dB | 0 | Same for brown_noise.wav. Rig setting. |
 
 ## Display
 

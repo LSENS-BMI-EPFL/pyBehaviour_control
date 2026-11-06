@@ -21,7 +21,7 @@ from .params import SessionParams
 ENTRIES: list[tuple[str, str, str, str, str]] = [
     # --- Session --------------------------------------------------------------
     ("Session", "mouse_name", "Mouse name", "", "Mouse ID; used in folder and file names."),
-    ("Session", "behaviour_directory", "Data folder", "", "Root folder for session data: `<folder>/<mouse>/<mouse>_<date>_<time>`."),
+    ("Session", "behaviour_directory", "Data folder", "", "Root folder for session data: `<folder>/<mouse>/<mouse>_<date>_<time>`. Rig setting: top-level `behaviour_directory:` in the rig file, never in presets."),
     ("Session", "behaviour_type", "Behaviour type", "", "Training stage label, saved for analysis (e.g. whisker_psy)."),
     ("Session", "date", "Date", "", "Set automatically at session start. Never stored in presets."),
     ("Session", "session_time", "", "", "Set automatically at session start. Never stored in presets."),
@@ -61,11 +61,11 @@ ENTRIES: list[tuple[str, str, str, str, str]] = [
     ("Passive stimulation", "passive_trial_max", "Trials", "", "Number of passive trials in the block."),
     ("Passive stimulation", "passive_iti", "Inter-trial interval", "ms", "ITI during the passive block."),
     # --- Stimuli --------------------------------------------------------------
-    ("Whisker", "wh_stim_duration", "Duration", "ms", "Biphasic pulse duration."),
-    ("Whisker", "wh_scaling_factor", "Scaling factor", "", "Amplitude of the return phase relative to the first."),
+    ("Whisker", "wh_stim_duration", "Duration", "ms", "Biphasic pulse duration. Mouse setting: remembered per mouse and rig, not in presets."),
+    ("Whisker", "wh_scaling_factor", "Scaling factor", "", "Amplitude of the return phase relative to the first. Mouse setting: remembered per mouse and rig, not in presets."),
     ("Whisker", "wh_stim_amp_range", "Several amplitudes", "on/off", "Use amplitudes #1–#5 (psychometric); off = #1 only."),
-    ("Whisker", "wh_stim_amp_{i}", "Amplitude (V) #{i}", "V", "Coil command amplitude."),
-    ("Whisker", "wh_stim_amp_mT_{i}", "Amplitude (mT) #{i}", "mT", "Field for that amplitude (from coil calibration); saved, not used for output."),
+    ("Whisker", "wh_stim_amp_{i}", "Amplitude (V) #{i}", "V", "Coil command amplitude. Mouse setting: remembered per mouse and rig, not in presets."),
+    ("Whisker", "wh_stim_amp_mT_{i}", "Amplitude (mT) #{i}", "mT", "Field for that amplitude (from coil calibration); saved, not used for output. Mouse setting: remembered per mouse and rig, not in presets."),
     ("Whisker", "wh_stim_weight_{i}", "Weight #{i}", "", "Trials of this amplitude per block."),
     ("Auditory", "aud_stim_duration", "Duration", "ms", ""),
     ("Auditory", "aud_stim_amp", "Amplitude", "V", ""),
@@ -78,7 +78,7 @@ ENTRIES: list[tuple[str, str, str, str, str]] = [
     ("Light", "light_stim_weight_{i}", "Weight #{i}", "", "Trials of this amplitude per block."),
     ("No stimulus", "no_stim_weight", "Weight", "", "Catch trials per block."),
     # --- Reward ---------------------------------------------------------------
-    ("Reward", "reward_valve_duration", "Valve opening", "ms", "Valve open time per reward (see Tools ▸ Valve calibration)."),
+    ("Reward", "reward_valve_duration", "Valve opening", "ms", "Valve open time per reward (see Tools ▸ Valve calibration). Rig setting: rig file `defaults:`, never in presets."),
     ("Reward", "reward_delay_flag", "Reward delay", "on/off", ""),
     ("Reward", "reward_delay_time", "Reward delay", "ms", "Delay before the valve opens."),
     ("Reward", "partial_reward_flag", "Partial reward", "on/off", ""),
@@ -89,11 +89,11 @@ ENTRIES: list[tuple[str, str, str, str, str]] = [
     # --- Context --------------------------------------------------------------
     ("Context", "context_flag", "Context task", "on/off", "Pink / brown noise blocks; whisker reward follows the mouse's rewarded context."),
     ("Context", "context_block_size", "Max same-context blocks", "", "Maximum consecutive blocks of the same context."),
-    ("Context", "context_table_directory", "Context table folder", "", "Folder with rewarded_context.csv. Not saved in session_config.json."),
-    ("Context", "bckg_noise_directory", "Noise folder", "", "Folder with pink_noise.wav and brown_noise.wav. Not saved in session_config.json."),
+    ("Context", "context_table_directory", "Context table folder", "", "Folder with rewarded_context.csv (Browse… picks the file). Not saved in session_config.json."),
+    ("Context", "bckg_noise_directory", "Noise folder", "", "Folder with pink_noise.wav and brown_noise.wav (Browse… picks the folder). Not saved in session_config.json."),
     ("Context", "context_sound_on", "Play background noise", "on/off", ""),
-    ("Context", "pink_noise_gain_db", "Pink noise gain", "dB", "Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session."),
-    ("Context", "brown_noise_gain_db", "Brown noise gain", "dB", "Same for brown_noise.wav."),
+    ("Context", "pink_noise_gain_db", "Pink noise gain", "dB", "Gain applied to pink_noise.wav when it plays, to match the two noise levels (see Tools ▸ Sound calibration). Changes apply immediately, also during a session. Rig setting: rig file `defaults:`, never in presets."),
+    ("Context", "brown_noise_gain_db", "Brown noise gain", "dB", "Same for brown_noise.wav. Rig setting."),
     # --- Display --------------------------------------------------------------
     ("Display", "last_recent_trials", "Window (trials)", "trials", "Sliding window of the performance plot."),
 ]
@@ -119,7 +119,7 @@ def render_markdown() -> str:
         "Every task setting, with the name used in:",
         "",
         "- the rig file, under `defaults:` (starting values for that rig),",
-        "- presets (`rigs/presets/<rig>/<name>.json`, under `\"params\"`),",
+        "- presets (`presets/<name>.json`, under `\"params\"`; not the rig settings),",
         "- `session_config.json` (same names as the MATLAB `handles2give`).",
         "",
         "In the GUI, hover over a field: the tooltip ends with its setting name. To build the block from the",

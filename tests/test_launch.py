@@ -47,7 +47,7 @@ def test_plain_launch_uses_built_in_rig_settings_then_the_remembered_file(app, h
 
     w = build_window(last_rig_file())
     assert "built-in rig settings" in w.windowTitle() and w.rig_config.source == ""
-    assert w.presets.directory == home / "presets" / "default"  # not inside the repository
+    assert w.presets.directory == EXAMPLE.parents[1] / "presets"  # the shared presets folder
     w.close()
 
     remember_rig_file(_rig_file(tmp_path))
@@ -100,4 +100,61 @@ def test_taskbar_tagging_is_safe_everywhere(app):
     assert "pybehaviour" in relaunch_command()
     w = QtWidgets.QWidget()
     assert tag_taskbar_window(w) in (True, False)  # no real window handle offscreen / off Windows: just skipped
+    w.close()
+
+
+def test_config_on_the_command_line_is_loaded_instead_of_the_last_preset(app, home, tmp_path):
+    import json
+
+    from pybehaviour.__main__ import build_window
+    from pybehaviour.params import SessionParams
+    from pybehaviour.presets import PresetStore
+
+    rig = _rig_file(tmp_path, "rigD")
+    shared = tmp_path / "shared_presets"
+    rig.write_text(rig.read_text(encoding="utf-8") + f"\npresets_directory: {shared.as_posix()}\n", encoding="utf-8")
+    w = build_window(rig)
+    store = w.presets
+    store.save("mine", SessionParams(min_iti=2000))
+    store.set_last_used("mine")
+    w.close()
+    cfg = tmp_path / "session_config.json"
+    cfg.write_text(json.dumps({"min_iti": 1234, "reward_valve_duration": 99}), encoding="utf-8")
+
+    w = build_window(rig, config=cfg)
+    assert w.params().min_iti == 1234 and w.preset is None and w.preset_box.currentText() == "Default settings"
+    assert w.params().reward_valve_duration != 99  # a rig setting: from the rig file
+    assert "session_config.json" in w.online_text.text() and not w.startup_problem
+    w.close()
+
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json", encoding="utf-8")
+    w = build_window(rig, config=bad)
+    assert "bad.json" in w.startup_problem and w.params().min_iti == SessionParams().min_iti
+    w.close()
+    assert PresetStore(shared, key=store.key).last_used() == "mine"
+
+
+def test_rig_settings_are_saved_in_the_rig_file_not_in_presets(app, home, tmp_path):
+    from pybehaviour.__main__ import build_window
+    from pybehaviour.rig.config import RigConfig
+
+    rig = _rig_file(tmp_path, "rigE")
+    rig.write_text(rig.read_text(encoding="utf-8") + f"\npresets_directory: {(tmp_path / 'p').as_posix()}\n",
+                   encoding="utf-8")
+    w = build_window(rig)
+    assert w.rig_state_row.isHidden()
+    w.b.widgets["min_iti"].setValue(3333)
+    w._write_preset("task")
+    w.b.widgets["reward_valve_duration"].setValue(77)
+    assert not w.rig_state_row.isHidden() and "valve opening" in w.rig_state.text()
+    assert w.preset_state.text() == "saved"  # a rig setting does not modify the preset
+    w._select_preset(None)
+    w._select_preset("task")
+    assert w.params().reward_valve_duration == 77  # presets keep the current rig settings
+    w._save_rig_settings()
+    assert RigConfig.load(rig).defaults["reward_valve_duration"] == 77 and w.rig_state_row.isHidden()
+    w.close()
+    w = build_window(rig)
+    assert w.params().reward_valve_duration == 77 and w.params().min_iti == 3333
     w.close()

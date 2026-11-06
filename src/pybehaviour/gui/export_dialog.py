@@ -21,7 +21,8 @@ class ExportDefaultsDialog(QtWidgets.QDialog):
 
         intro = QtWidgets.QLabel(
             "The current settings as a <code>defaults:</code> block for a rig file. They become the "
-            "starting values of this rig (presets still override them). Setting names: docs/SETTINGS.md.",
+            "starting values of this rig (presets override the task settings, not the rig settings: "
+            "valve opening and noise gains). Setting names: docs/SETTINGS.md.",
             wordWrap=True)
         lay.addWidget(intro)
         self.changed_only = QtWidgets.QRadioButton("Only settings that differ from the built-in defaults (shorter)")

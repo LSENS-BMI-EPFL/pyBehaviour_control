@@ -1,6 +1,7 @@
 """Per-rig defaults and named presets."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -62,7 +63,7 @@ def test_differs_from(tmp_path):
 
 # --- start-up order ------------------------------------------------------------
 
-def test_startup_order_rig_defaults_then_preset_then_config(tmp_path):
+def test_startup_order_rig_defaults_then_preset_or_config(tmp_path):
     store = PresetStore(tmp_path / "presets")
     store.save("mine", SessionParams(min_iti=2000, lick_threshold=0.08))
     store.set_last_used("mine")
@@ -76,8 +77,9 @@ def test_startup_order_rig_defaults_then_preset_then_config(tmp_path):
     params, preset = startup_params({"min_iti": 5000, "max_iti": 7000}, store)
     assert (params.min_iti, params.max_iti, params.lick_threshold) == (2000, 10000, 0.08) and preset.name == "mine"
 
-    params, _ = startup_params({"min_iti": 5000}, store, cfg)
-    assert params.lick_threshold == 0.2
+    # --config replaces the last used preset (no mix of the two)
+    params, preset = startup_params({"min_iti": 5000}, store, cfg)
+    assert params.lick_threshold == 0.2 and params.min_iti == 5000 and preset is None
     assert params.mouse_weight_before == 0 and params.date == ""  # never copied from an old session
 
 
@@ -88,6 +90,58 @@ def test_load_session_settings_ignores_session_fields(tmp_path):
     assert p.min_iti == 1111 and p.mouse_weight_after == 0 and p.session_time == ""
 
 
+# --- rig settings are never part of a preset ---------------------------------------
+
+RIG_VALUES = dict(behaviour_directory="E:/data", reward_valve_duration=62, pink_noise_gain_db=-3, brown_noise_gain_db=1)
+
+
+def test_rig_settings_are_not_stored_in_presets(tmp_path):
+    store = PresetStore(tmp_path)
+    store.save("a", SessionParams(min_iti=3000, **RIG_VALUES))
+    data = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))["params"]
+    assert not set(RIG_VALUES) & set(data) and data["min_iti"] == 3000
+    # an old preset that still has them: ignored, the rig's values stay
+    (tmp_path / "old.json").write_text(json.dumps({"params": {"reward_valve_duration": 99, "behaviour_directory": "X:/",
+                                                              "min_iti": 4000}}), encoding="utf-8")
+    out = store.load("old").apply(SessionParams(**RIG_VALUES))
+    assert out.min_iti == 4000 and out.reward_valve_duration == 62 and out.behaviour_directory == "E:/data"
+    assert not store.load("old").differs_from(SessionParams(min_iti=4000, reward_valve_duration=10))
+
+
+def test_previous_session_keeps_the_rig_settings(tmp_path):
+    cfg = tmp_path / "session_config.json"
+    cfg.write_text(json.dumps({"min_iti": 1111, "reward_valve_duration": 80, "pink_noise_gain_db": 5}), encoding="utf-8")
+    p = load_session_settings(SessionParams(**RIG_VALUES), cfg)
+    assert p.min_iti == 1111 and p.reward_valve_duration == 62 and p.pink_noise_gain_db == -3
+
+
+def test_config_can_be_a_preset_file_or_have_a_bom(tmp_path):
+    store = PresetStore(tmp_path)
+    store.save("x", SessionParams(min_iti=2222, lick_threshold=0.07))
+    assert load_session_settings(SessionParams(), tmp_path / "x.json").min_iti == 2222
+    bom = tmp_path / "bom.json"
+    bom.write_text(json.dumps({"min_iti": 3333}), encoding="utf-8-sig")  # PowerShell / Notepad
+    assert load_session_settings(SessionParams(), bom).min_iti == 3333
+
+
+def test_config_without_any_setting_is_an_error(tmp_path):
+    junk = tmp_path / "other.json"
+    junk.write_text(json.dumps({"something": 1}), encoding="utf-8")
+    with pytest.raises(ValueError, match="no settings"):
+        load_session_settings(SessionParams(), junk)
+
+
+def test_last_used_is_per_machine_and_per_rig(tmp_path):
+    shared = tmp_path / "shared"
+    a, b = PresetStore(shared, key="rigA"), PresetStore(shared, key="rigB")
+    a.save("p1", SessionParams())
+    a.save("p2", SessionParams())
+    a.set_last_used("p1")
+    b.set_last_used("p2")
+    assert (a.last_used(), b.last_used()) == ("p1", "p2")
+    assert sorted(p.name for p in shared.iterdir()) == ["p1.json", "p2.json"]  # nothing per machine in the folder
+
+
 # --- rig file ------------------------------------------------------------------------
 
 def test_rig_defaults_and_presets_folder(tmp_path):
@@ -95,7 +149,7 @@ def test_rig_defaults_and_presets_folder(tmp_path):
     rig.write_text("name: rigA\ndefaults:\n  lick_threshold: 0.05\n  aud_reward: false\n", encoding="utf-8")
     cfg = RigConfig.load(rig)
     assert cfg.defaults == {"lick_threshold": 0.05, "aud_reward": False}
-    assert cfg.presets_path() == tmp_path / "presets" / "rigA"
+    assert cfg.presets_path() == Path(__file__).parents[1] / "presets"  # shared by all rigs
     rig.write_text("name: rigA\npresets_directory: shared/presets\n", encoding="utf-8")
     assert RigConfig.load(rig).presets_path() == tmp_path / "shared" / "presets"
 

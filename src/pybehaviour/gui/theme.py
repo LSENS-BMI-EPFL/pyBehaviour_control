@@ -20,6 +20,7 @@ TEXT = "#0b0b0b"
 TEXT_2 = "#52514e"
 TEXT_3 = "#77756f"
 GRID_ALPHA = 0.12
+HOVER = "#dce9f9"  # highlighted item in drop-down lists: light tint, text stays dark and readable
 
 # categorical series (fixed order)
 AUDITORY = "#2a78d6"  # slot 1 blue
@@ -94,6 +95,11 @@ QPushButton#primary:disabled {{ background: #b9d3c0; color: #f3f2ef; border-colo
 QPushButton#danger {{ background: #c0322f; color: white; border-color: #c0322f; font-weight: 600; }}
 QPushButton#danger:disabled {{ background: #e3b5b3; color: #f3f2ef; border-color: #e3b5b3; }}
 QAbstractSpinBox, QLineEdit, QComboBox {{ padding: 3px 6px; border: 1px solid {BORDER}; border-radius: 4px; background: #ffffff; min-height: 22px; }}
+QComboBox {{ selection-background-color: {HOVER}; selection-color: {TEXT}; }}
+QComboBox QAbstractItemView {{ background: #ffffff; color: {TEXT}; border: 1px solid {BORDER}; outline: none;
+                              selection-background-color: {HOVER}; selection-color: {TEXT}; }}
+QComboBox QAbstractItemView::item {{ min-height: 24px; padding: 2px 6px; color: {TEXT}; }}
+QComboBox QAbstractItemView::item:hover, QComboBox QAbstractItemView::item:selected {{ background: {HOVER}; color: {TEXT}; }}
 QLabel#muted {{ color: {TEXT_2}; }}
 QLabel#statusPill {{ padding: 6px 14px; border-radius: 14px; color: white; font-weight: 600; }}
 QLabel#contextBanner {{ padding: 6px 14px; border-radius: 8px; color: white; font-weight: 700; }}

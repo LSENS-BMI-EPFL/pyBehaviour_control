@@ -12,6 +12,3 @@ wheels/
 # test / sim output
 .pytest_cache/
 tests/data/matlab_sessions/*/results_replay.csv
-
-# per-machine state: which preset this PC used last (presets themselves are shared)
-rigs/presets/**/.last_used

@@ -58,15 +58,18 @@ calibration:                # coil calibration (Tools > Coil calibration)
   directory: C:/calibration    # results go to <directory>/<mouse>/<mouse>_<date>/
 
 # Default GUI values for this rig. Any setting name from session_config.json.
-# Personal / per-task values belong in presets (saved from the GUI), not here.
+# Rig settings (reward_valve_duration, pink_noise_gain_db, brown_noise_gain_db, and
+# behaviour_directory above) are always taken from here, never from presets: the GUI
+# writes them back with "Save to rig file". Per-task values belong in presets.
 defaults:
   lick_threshold: 0.03
   min_iti: 6000
   max_iti: 10000
 
-# Presets saved from the GUI ("Save as…"). Relative to this file.
-# Default: presets/<rig name>/
-# presets_directory: presets/example
+# Presets saved from the GUI ("Save as…"). Default: presets/ of the installation,
+# shared by all rigs (commit them to share through git). A shared network folder
+# works too; relative paths are relative to this file.
+# presets_directory: M:/analysis/behaviour_presets
 
 # At startup, pulse the stimulus trigger and check it shows up on the logged
 # trial_ttl input. Refuses to start if not (wrong device names / wiring).

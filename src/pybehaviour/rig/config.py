@@ -106,7 +106,8 @@ class RigConfig:
     calibration: Calibration = field(default_factory=Calibration)
     # GUI defaults for this rig (any SessionParams field), e.g. {"lick_threshold": 0.05}
     defaults: dict = field(default_factory=dict)
-    # where named presets are stored; relative paths are relative to the rig file
+    # where named presets are stored; relative paths are relative to the rig file.
+    # Default: presets/ of the installation, shared by every rig and machine.
     presets_directory: str = ""
     source: str = ""  # path of the rig file, set by load()
     # check at startup that the stimulus trigger reaches the logged trial_ttl input
@@ -125,12 +126,14 @@ class RigConfig:
         return cfg
 
     def presets_path(self) -> Path:
-        """Folder holding this rig's presets."""
-        base = Path(self.source).parent if self.source else Path.cwd()
+        """Folder holding the presets this rig lists."""
         if self.presets_directory:
+            base = Path(self.source).parent if self.source else Path.cwd()
             p = Path(self.presets_directory)
             return p if p.is_absolute() else base / p
-        return base / "presets" / self.name
+        from ..app_state import shared_presets_dir
+
+        return shared_presets_dir()
 
     def devices(self) -> set[str]:
         """Device names referenced anywhere in the config (e.g. {'Dev1', 'Dev2'})."""

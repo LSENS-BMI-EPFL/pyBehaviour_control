@@ -29,7 +29,9 @@ from ..modules.opto import OptoConfig, OptoModule
 from ..modules.pdco import PdcoConfig, PdcoModule
 from ..params import SessionParams
 from ..planner import CONTEXTS
-from ..presets import Preset, PresetStore, check_name, load_session_settings
+from .. import mouse_settings
+from ..mouse_settings import MOUSE_FIELDS
+from ..presets import NOT_IN_PRESET, RIG_FIELDS, Preset, PresetStore, check_name, load_session_settings, rig_fields
 from ..results import compute_performance, compute_reward_volume, early_lick_rate, sliding_rates
 from ..rig import Rig
 from ..rig.config import RigConfig
@@ -122,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, rig_factory: Callable[[], Rig], defaults: SessionParams | None = None, title: str = "",
                  rig_config: RigConfig | None = None, presets: PresetStore | None = None,
                  preset: Preset | None = None, rig_defaults: SessionParams | None = None,
-                 load_rig: Callable[[Path], None] | None = None):
+                 load_rig: Callable[[Path], None] | None = None, load_mouse: bool = True):
         super().__init__()
         self.setWindowTitle(f"LSENS behaviour control {title}".strip())
         self.rig_factory = rig_factory
@@ -140,12 +142,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.b = Binder(self._params_changed)
         self._defaults = defaults or SessionParams()
         self.presets = presets
-        self.preset: Preset | None = preset  # loaded preset, None = rig defaults
-        self._rig_defaults = rig_defaults or self._defaults  # what "Rig defaults" restores
+        self.preset: Preset | None = preset  # loaded preset, None = default settings (rig file)
+        self._rig_defaults = rig_defaults or self._defaults  # what "Default settings" restores
+        self._mouse_loaded_for: str | None = None  # mouse whose whisker settings are shown
         # module settings from a preset, applied when their window opens
         self._pending_opto: OptoConfig | None = preset.opto if preset else None
         self._pending_pdco: PdcoConfig | None = preset.pdco if preset else None
         self._started_at: float | None = None
+        self.startup_problem = ""  # set by build_window when --config could not be loaded
 
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
@@ -177,6 +181,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.b.write(self._defaults.copy(date=datetime.now().strftime("%Y%m%d")))
         self._update_enabled()
+        if load_mouse:
+            self._load_mouse_settings()
+        else:  # settings chosen explicitly (--config): keep its whisker values
+            self._mouse_loaded_for = self._defaults.mouse_name.strip()
         self._refresh_presets()
         self.refresh_reward_volume()
         QtCore.QTimer.singleShot(0, self._open_enabled_module_windows)
@@ -236,7 +244,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.delete_preset_action = m.addAction("Delete preset…", self._delete_preset)
         m.addSeparator()
         m.addAction("Load settings from a previous session…", self._load_from_session)
-        m.addAction("Reset to rig defaults", lambda: self._select_preset(None))
+        m.addAction("Reset to default settings", lambda: self._select_preset(None))
         m.addAction("Export settings as rig defaults…", self._export_defaults)
         m.addSeparator()
         self.load_rig_action = m.addAction("Load rig file…", self._load_rig_file, QtGui.QKeySequence("Ctrl+O"))
@@ -253,14 +261,14 @@ class MainWindow(QtWidgets.QMainWindow):
         t.addAction("PdCO settings…", lambda: self._show_module_window("pdco"))
 
     def _preset_bar(self) -> QtWidgets.QWidget:
-        w = QtWidgets.QFrame(objectName="card")
-        h = QtWidgets.QHBoxLayout(w)
-        h.setContentsMargins(8, 4, 8, 4)
+        h = QtWidgets.QHBoxLayout()
+        h.setContentsMargins(0, 0, 0, 0)
         lab = QtWidgets.QLabel("Preset")
         self.preset_box = QtWidgets.QComboBox()
         self.preset_box.setMinimumWidth(150)
         self.preset_box.setAccessibleName("Settings preset")
-        self.preset_box.setToolTip("Saved settings for this rig. Pick one to load it; it is remembered for next time.")
+        self.preset_box.setToolTip("Saved task settings, shared by all rigs. Pick one to load it; it is remembered "
+                                   "for next time.\n'Default settings': the rig file's defaults, no preset.")
         lab.setBuddy(self.preset_box)
         self.preset_box.activated.connect(self._preset_chosen)
         self.preset_save_btn = QtWidgets.QPushButton("Save")
@@ -275,13 +283,37 @@ class MainWindow(QtWidgets.QMainWindow):
             h.addWidget(x)
         h.addWidget(self.preset_state, 1)
         if self.presets is None:
-            w.setEnabled(False)
+            for x in (lab, self.preset_box, self.preset_save_btn, save_as):
+                x.setEnabled(False)
+        # rig settings are not part of presets: they are saved in the rig file
+        self.rig_state_row = QtWidgets.QWidget()
+        r = QtWidgets.QHBoxLayout(self.rig_state_row)
+        r.setContentsMargins(0, 0, 0, 0)
+        self.rig_state = QtWidgets.QLabel("", objectName="muted", wordWrap=True)
+        self.rig_state.setAccessibleName("Rig settings state")
+        self.rig_save_btn = QtWidgets.QPushButton("Save to rig file")
+        self.rig_save_btn.setToolTip("Write the data folder, valve opening and noise gains into the rig file "
+                                     "(a backup is kept as .yaml.bak)")
+        self.rig_save_btn.clicked.connect(self._save_rig_settings)
+        r.addWidget(self.rig_state, 1)
+        r.addWidget(self.rig_save_btn)
+        self.rig_state_row.setVisible(False)
+        w = QtWidgets.QFrame(objectName="card")
+        v = QtWidgets.QVBoxLayout(w)
+        v.setContentsMargins(8, 4, 8, 4)
+        v.addLayout(h)
+        v.addWidget(self.rig_state_row)
         return w
 
     def _add_setting_names_to_tooltips(self) -> None:
         """Hovering a field shows its setting name (for rig defaults and presets, see docs/SETTINGS.md)."""
         for name, w in self.b.widgets.items():
             tip = w.toolTip()
+            if name in RIG_FIELDS:
+                tip = (f"{tip}\n\n" if tip else "") + "Rig setting: saved in the rig file, not in presets."
+            elif name in MOUSE_FIELDS:
+                tip = (f"{tip}\n\n" if tip else "") + ("Mouse setting: remembered per mouse on this rig (loaded when the "
+                                                        "mouse name is entered), not in presets.")
             w.setToolTip(f"{tip}\n\nSetting name: {name}" if tip else f"Setting name: {name}")
 
     def _shortcuts(self) -> None:
@@ -318,7 +350,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def _tab_session(self):
         b = self.b
         mouse = Form("Mouse")
-        mouse.row("Mouse name", b.line("mouse_name"))
+        mouse.row("Mouse name", b.line("mouse_name"),
+                  tip="Entering a mouse name loads the whisker settings last used for this mouse on this rig")
+        b.widgets["mouse_name"].editingFinished.connect(self._load_mouse_settings)
         mouse.row("Date", b.line("date"))
         b.widgets["date"].setReadOnly(True)
         mouse.row("Weight before (g)", b.spin("mouse_weight_before"))
@@ -385,22 +419,32 @@ class MainWindow(QtWidgets.QMainWindow):
         return [tl.box, mode.box, to.box, passive.box]
 
     def _amp_table(self, form: Form, prefix: str, second: str, second_label: str, weight_label: str) -> None:
-        hdr = form.grid.rowCount()
+        """Amplitude / second unit / weight per slot. Slots 2-5 (and the slot numbers) are shown
+        only with 'Several amplitudes' ticked (see _update_enabled)."""
+        grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(6)
+        grid.setColumnMinimumWidth(0, 22)  # slot numbers: a small indent, also when hidden
         for c, t in enumerate(["Amplitude (V)", second_label, weight_label]):
-            lab = QtWidgets.QLabel(t, objectName="muted")
-            form.grid.addWidget(lab, hdr, c + 1)
-        form.grid.setColumnStretch(2, 1)
-        form.grid.setColumnStretch(3, 1)
+            grid.addWidget(QtWidgets.QLabel(t, objectName="muted"), 0, c + 1)
+            grid.setColumnStretch(c + 1, 1)
+        rows = self._amp_rows.setdefault(prefix, [])
         for i in range(1, 6):
-            r = form.grid.rowCount()
-            form.grid.addWidget(QtWidgets.QLabel(f"#{i}"), r, 0)
+            number = QtWidgets.QLabel(f"#{i}")
+            grid.addWidget(number, i, 0)
+            row = [number]
             for c, name in enumerate((f"{prefix}_amp_{i}", f"{second}_{i}", f"{prefix}_weight_{i}")):
                 w = self.b.spin(name, 3 if c == 0 else (2 if c == 1 else 0))
                 w.setAccessibleName(f"{['Amplitude', second_label, weight_label][c]} {i}")
-                form.grid.addWidget(w, r, c + 1)
+                grid.addWidget(w, i, c + 1)
+                row.append(w)
+            rows.append(row)
+        form.grid.addLayout(grid, form.grid.rowCount(), 0, 1, 2)
 
     def _tab_stimuli(self):
         b = self.b
+        self._amp_rows: dict[str, list[list[QtWidgets.QWidget]]] = {}
         wh = Form("Whisker")
         wh.row("Duration (ms)", b.spin("wh_stim_duration", 1))
         wh.row("Scaling factor", b.spin("wh_scaling_factor", 2, step=0.05), tip="Amplitude of the return phase")
@@ -453,8 +497,16 @@ class MainWindow(QtWidgets.QMainWindow):
         c = Form("Context (pink / brown noise blocks)")
         c.full(b.check("context_flag", "Context task"))
         c.row("Max same-context blocks", b.spin("context_block_size"))
-        c.row("Context table folder", b.line("context_table_directory"), tip="Folder with rewarded_context.csv")
-        c.row("Noise folder", b.line("bckg_noise_directory"), tip="Folder with pink_noise.wav and brown_noise.wav")
+        self.context_table_btn = QtWidgets.QPushButton("Browse…")
+        self.context_table_btn.setToolTip("Pick the rewarded_context.csv file")
+        self.context_table_btn.clicked.connect(self._browse_context_table)
+        c.row("Context table folder", b.line("context_table_directory"), self.context_table_btn,
+              tip="Folder with rewarded_context.csv")
+        self.noise_dir_btn = QtWidgets.QPushButton("Browse…")
+        self.noise_dir_btn.setToolTip("Pick the folder holding pink_noise.wav and brown_noise.wav")
+        self.noise_dir_btn.clicked.connect(self._browse_noise_folder)
+        c.row("Noise folder", b.line("bckg_noise_directory"), self.noise_dir_btn,
+              tip="Folder with pink_noise.wav and brown_noise.wav")
         c.full(b.check("context_sound_on", "Play background noise"))
         c.row("Pink noise gain (dB)", b.spin("pink_noise_gain_db", 1, maximum=40, step=0.5),
               tip="Level of pink_noise.wav; applies immediately, also during a session")
@@ -700,11 +752,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_enabled(self) -> None:
         w, p = self.b.widgets, self.params()
-        for i in range(2, 6):
-            for f in (f"wh_stim_amp_{i}", f"wh_stim_amp_mT_{i}", f"wh_stim_weight_{i}"):
-                w[f].setEnabled(p.wh_stim_amp_range)
-            for f in (f"light_stim_amp_{i}", f"light_stim_power_{i}", f"light_stim_weight_{i}"):
-                w[f].setEnabled(p.light_stim_amp_range)
+        for prefix, several in (("wh_stim", p.wh_stim_amp_range), ("light_stim", p.light_stim_amp_range)):
+            for i, row in enumerate(self._amp_rows[prefix]):
+                for x in (row if i else row[:1]):  # slot 1 always shown, without its number when alone
+                    x.setVisible(several)
         for f in ("camera_freq", "camera_exposure_time", "camera_start_delay"):
             w[f].setEnabled(p.camera_flag)
         w["reward_delay_time"].setEnabled(p.reward_delay_flag)
@@ -713,6 +764,9 @@ class MainWindow(QtWidgets.QMainWindow):
         w["early_lick_timeout"].setEnabled(p.early_lick_punish_flag)
         for f in ("context_block_size", "context_table_directory", "bckg_noise_directory", "context_sound_on"):
             w[f].setEnabled(p.context_flag)
+        running = self.session is not None and self.session.running
+        self.context_table_btn.setEnabled(p.context_flag and not running)
+        self.noise_dir_btn.setEnabled(p.context_flag)
         if p.context_flag and not w["wh_reward"].isChecked():
             w["wh_reward"].setChecked(True)
         w["wh_reward"].setEnabled(not p.context_flag)
@@ -848,7 +902,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.calibration_window.activateWindow()
 
     # --- presets -----------------------------------------------------------------------------
-    RIG_DEFAULTS = "Rig defaults"
+    RIG_DEFAULTS = "Default settings"
 
     def _refresh_presets(self) -> None:
         self.preset_box.blockSignals(True)
@@ -864,15 +918,78 @@ class MainWindow(QtWidgets.QMainWindow):
         if not hasattr(self, "preset_state"):
             return
         p = self.params()
+        self._update_rig_state(p)
         if self.preset is None:
             changed = any(getattr(p, k) != getattr(self._rig_defaults, k) for k in self._rig_defaults.__dataclass_fields__
-                          if k not in ("date", "session_time", "mouse_weight_before", "mouse_weight_after"))
+                          if k not in NOT_IN_PRESET)
             self.preset_state.setText("● modified" if changed else "")
             self.preset_save_btn.setEnabled(False)
         else:
             self.preset_state.setText("● modified, not saved" if self.preset.differs_from(p) else "saved")
             self.preset_save_btn.setEnabled(True)
         self.delete_preset_action.setEnabled(self.preset is not None)
+
+    def _load_mouse_settings(self) -> None:
+        """The whisker settings last used for this mouse on this rig (when the name changes)."""
+        p = self.params()
+        name = p.mouse_name.strip()
+        if name == self._mouse_loaded_for:
+            return
+        self._mouse_loaded_for = name
+        found = mouse_settings.load(self.rig_config.name, name, p.behaviour_directory)
+        if found is None:
+            if mouse_settings.has_name(name):
+                self.online_text.setText(f"New mouse {name}: whisker settings kept as they are")
+            return
+        values, source = found
+        self.set_params(p.copy(**values))
+        self.online_text.setText(f"Whisker settings of {name} loaded ({source})")
+
+    def remember_mouse_settings(self) -> None:
+        """Save the whisker settings for this mouse (session start, coil calibration)."""
+        p = self.params()
+        try:
+            mouse_settings.save(self.rig_config.name, p.mouse_name, p)
+            self._mouse_loaded_for = p.mouse_name.strip()
+        except OSError:
+            pass  # never stops a session
+
+    def _rig_changes(self, p: SessionParams | None = None) -> dict:
+        """Rig settings that differ from the rig file."""
+        p = p or self.params()
+        saved = rig_fields(self._rig_defaults)
+        return {k: v for k, v in rig_fields(p).items() if v != saved[k]}
+
+    def _update_rig_state(self, p: SessionParams) -> None:
+        if not hasattr(self, "rig_state"):
+            return
+        changes = self._rig_changes(p)
+        self.rig_state_row.setVisible(bool(changes))
+        if not changes:
+            return
+        labels = {"behaviour_directory": "data folder", "reward_valve_duration": "valve opening",
+                  "pink_noise_gain_db": "pink noise gain", "brown_noise_gain_db": "brown noise gain"}
+        what = ", ".join(labels[k] for k in labels if k in changes)
+        if self.rig_config.source:
+            self.rig_state.setText(f"● Rig settings changed ({what}): kept until you close, unless saved to the rig file.")
+            self.rig_save_btn.setEnabled(not (self.session is not None and self.session.running))
+        else:
+            self.rig_state.setText(f"● Rig settings changed ({what}): load a rig file to keep them (Settings ▸ Load rig file…).")
+            self.rig_save_btn.setEnabled(False)
+
+    def _save_rig_settings(self) -> None:
+        from ..rig_defaults import write_rig_settings
+
+        changes = self._rig_changes()
+        if not changes or not self.rig_config.source:
+            return
+        try:
+            write_rig_settings(Path(self.rig_config.source), changes)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Rig file not changed", str(exc))
+            return
+        self.rig_defaults_changed()
+        self.online_text.setText(f"Saved rig settings to {Path(self.rig_config.source).name}")
 
     def _preset_chosen(self, index: int) -> None:
         name = self.preset_box.itemText(index)
@@ -884,7 +1001,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refresh_presets()
             return
         current = self.params()
-        keep = {"behaviour_directory": current.behaviour_directory, "date": current.date}
+        # presets never change rig settings or the mouse's whisker settings
+        keep = rig_fields(current) | mouse_settings.mouse_fields(current) | {"date": current.date}
         if name is None:
             self.preset = None
             params = self._rig_defaults.copy(**keep)
@@ -896,7 +1014,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.critical(self, "Could not load preset", str(exc))
                 self._refresh_presets()
                 return
-            params = self.preset.apply(self._rig_defaults).copy(date=current.date)
+            params = self.preset.apply(self._rig_defaults).copy(**keep)
             self._pending_opto, self._pending_pdco = self.preset.opto, self.preset.pdco
         if self.opto_window is not None:
             self.opto_window.set_config(self._pending_opto or OptoConfig())
@@ -906,7 +1024,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.presets.set_last_used(name)
         self.set_params(params)
         self._refresh_presets()
-        self.online_text.setText(f"Loaded preset '{name}'" if name else "Rig defaults loaded")
+        self.online_text.setText(f"Loaded preset '{name}'" if name else "Default settings loaded")
+        self._load_mouse_settings()  # the preset may name another mouse
 
     def _save_preset(self) -> None:
         if self.presets is None:
@@ -960,7 +1079,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ExportDefaultsDialog(self).exec()
 
     def rig_defaults_changed(self) -> None:
-        """The rig file's defaults were rewritten: make them what 'Rig defaults' restores."""
+        """The rig file's defaults were rewritten: make them what 'Default settings' restores."""
         from ..presets import startup_params
         from ..rig.config import RigConfig
 
@@ -969,8 +1088,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception:
             return
         self.rig_config.defaults = cfg.defaults
-        current = self.params()
-        self._rig_defaults, _ = startup_params({"behaviour_directory": current.behaviour_directory, **cfg.defaults}, None)
+        self.rig_config.behaviour_directory = cfg.behaviour_directory
+        self._rig_defaults, _ = startup_params({"behaviour_directory": cfg.behaviour_directory, **cfg.defaults}, None)
         self._update_preset_state()
 
     def _load_from_session(self) -> None:
@@ -985,9 +1104,36 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "Could not read settings", str(exc))
             return
         self.set_params(params.copy(date=self.params().date))
+        self._mouse_loaded_for = params.mouse_name.strip()  # whisker values from that session
         self.online_text.setText("Loaded settings from a previous session")
 
     # --- buttons ---------------------------------------------------------------------------
+    def _browse_context_table(self) -> None:
+        from ..modules.context import TABLE_NAME
+
+        start = self.b.widgets["context_table_directory"].text()
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Context table", start,
+                                                        f"Context table ({TABLE_NAME});;CSV files (*.csv)")
+        if not path:
+            return
+        if Path(path).name != TABLE_NAME:
+            QtWidgets.QMessageBox.warning(self, "Context table", f"The task reads {TABLE_NAME} in the chosen folder, "
+                                          f"not {Path(path).name}. Rename the file, or pick {TABLE_NAME}.")
+            return
+        self.b.widgets["context_table_directory"].setText(str(Path(path).parent))
+        self._params_changed()
+
+    def _browse_noise_folder(self) -> None:
+        start = self.b.widgets["bckg_noise_directory"].text()
+        d = QtWidgets.QFileDialog.getExistingDirectory(self, "Noise folder (pink_noise.wav, brown_noise.wav)", start)
+        if not d:
+            return
+        missing = [n for n in ("pink_noise.wav", "brown_noise.wav") if not (Path(d) / n).is_file()]
+        if missing:
+            QtWidgets.QMessageBox.warning(self, "Noise folder", f"{d} has no {' or '.join(missing)}.")
+        self.b.widgets["bckg_noise_directory"].setText(d)
+        self._params_changed()
+
     def _browse(self) -> None:
         d = QtWidgets.QFileDialog.getExistingDirectory(self, "Behaviour data folder", self.b.widgets["behaviour_directory"].text())
         if d:
@@ -997,6 +1143,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _start(self) -> None:
         if self.session is not None and self.session.running:
             return
+        self._load_mouse_settings()  # name typed but Start pressed before leaving the field
         p = self.params()
         problems = p.validate()
         if problems:
@@ -1030,6 +1177,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.pdco_window.attach(modules[1])
         if self.opto_window:
             self.opto_window.attach(self.opto_module)
+        self.remember_mouse_settings()
         self._started_at = time.monotonic()
         self._set_running(True)
         self._set_status("Running", "running")
@@ -1074,8 +1222,14 @@ class MainWindow(QtWidgets.QMainWindow):
         for name in ("mouse_name", "behaviour_directory", "context_flag", "context_table_directory",
                      "ttl_session", "opto_session"):
             self.b.widgets[name].setEnabled(not running)
+        if hasattr(self, "context_table_btn"):
+            self.context_table_btn.setEnabled(not running and self.b.widgets["context_flag"].isChecked())
         if hasattr(self, "preset_box"):
             self.preset_box.setEnabled(not running and self.presets is not None)
+        if hasattr(self, "rig_save_btn") and running:
+            self.rig_save_btn.setEnabled(False)  # no rig file writes during a session
+        elif hasattr(self, "rig_state"):
+            self._update_rig_state(self.params())
 
     def _set_status(self, text: str, kind: str) -> None:
         color, icon = theme.STATUS[kind]

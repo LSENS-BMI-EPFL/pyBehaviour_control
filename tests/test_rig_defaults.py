@@ -79,3 +79,30 @@ def test_write_refuses_broken_rig_file(tmp_path):
     with pytest.raises(ValueError):
         write_rig_defaults(rig, PARAMS)
     assert rig.read_text(encoding="utf-8") == "stim:\n  trigerr: x\n"  # untouched
+
+
+def test_write_rig_settings_changes_only_those_values(tmp_path):
+    from pybehaviour.rig_defaults import write_rig_settings
+
+    rig = tmp_path / "rig.yaml"
+    rig.write_text("# my rig\nname: rigA\nbehaviour_directory: D:/old   # data\n\nmain_input:\n  rate: 1000\n\n"
+                   "defaults:\n  min_iti: 4000\n  reward_valve_duration: 50\n\ncheck_trigger_loopback: true\n",
+                   encoding="utf-8")
+    backup = write_rig_settings(rig, {"behaviour_directory": "E:\behaviour_data", "reward_valve_duration": 62,
+                                      "pink_noise_gain_db": -2.5})
+    cfg = RigConfig.load(rig)
+    assert cfg.behaviour_directory == "E:\behaviour_data"
+    assert cfg.defaults == {"min_iti": 4000, "reward_valve_duration": 62, "pink_noise_gain_db": -2.5}
+    text = rig.read_text(encoding="utf-8")
+    assert text.startswith("# my rig\n") and "   # data" in text and "check_trigger_loopback: true" in text
+    assert backup.exists()
+
+
+def test_write_rig_settings_adds_a_missing_data_folder(tmp_path):
+    from pybehaviour.rig_defaults import write_rig_settings
+
+    rig = tmp_path / "rig.yaml"
+    rig.write_text("name: rigA\n", encoding="utf-8")
+    write_rig_settings(rig, {"behaviour_directory": "F:/data", "reward_valve_duration": 40})
+    cfg = RigConfig.load(rig)
+    assert (cfg.name, cfg.behaviour_directory, cfg.defaults) == ("rigA", "F:/data", {"reward_valve_duration": 40})

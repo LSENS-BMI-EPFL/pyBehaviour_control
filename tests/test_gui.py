@@ -66,11 +66,16 @@ def test_every_session_param_has_a_widget(window):
     assert not missing, f"no GUI widget for: {sorted(missing)}"
 
 
-def test_amplitude_range_enables_extra_rows(window):
+def test_amplitude_range_shows_extra_rows(window):
     w = window.b.widgets
-    assert not w["wh_stim_amp_2"].isEnabled()
-    w["wh_stim_amp_range"].setChecked(True)
-    assert w["wh_stim_amp_2"].isEnabled()
+    for prefix, second, flag in (("wh_stim", "wh_stim_amp_mT", "wh_stim_amp_range"),
+                                 ("light_stim", "light_stim_power", "light_stim_amp_range")):
+        assert not w[f"{prefix}_amp_1"].isHidden() and not w[f"{second}_1"].isHidden()  # the single stimulus
+        assert all(w[f"{prefix}_amp_{i}"].isHidden() and w[f"{prefix}_weight_{i}"].isHidden() for i in range(2, 6))
+        w[flag].setChecked(True)
+        assert not any(w[f"{prefix}_amp_{i}"].isHidden() or w[f"{second}_{i}"].isHidden() for i in range(1, 6))
+        w[flag].setChecked(False)
+        assert w[f"{prefix}_amp_2"].isHidden()
 
 
 def test_trial_duration_is_raised_to_fit_windows(window):
@@ -225,7 +230,7 @@ def test_preset_is_restored_when_the_gui_reopens(app, tmp_path):
 
     w = make_window(tmp_path, tmp_path / "presets")
     assert w.params().lick_threshold == 0.05  # rig default
-    assert w.preset_box.currentText() == "Rig defaults"
+    assert w.preset_box.currentText() == "Default settings"
     w.b.widgets["min_iti"].setValue(1234)
     w.b.widgets["opto_session"].setChecked(True)
     w.opto_window.set_config(OptoConfig(grid="Grid 3", frequency=25))
@@ -256,7 +261,7 @@ def test_switching_presets_and_back_to_rig_defaults(app, tmp_path):
     w._select_preset(None)
     assert w.params().no_stim_weight == 0 and w.params().lick_threshold == 0.05
     assert w.presets.last_used() is None
-    assert [w.preset_box.itemText(i) for i in range(w.preset_box.count())] == ["Rig defaults", "A", "B"]
+    assert [w.preset_box.itemText(i) for i in range(w.preset_box.count())] == ["Default settings", "A", "B"]
     w.close()
 
 
@@ -458,7 +463,7 @@ def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
     data = yaml.safe_load(rig.read_text(encoding="utf-8"))
     assert data["defaults"]["min_iti"] == 4321 and "# bench" in rig.read_text(encoding="utf-8")
     assert (tmp_path / "rig3.yaml.bak").exists()
-    # "Rig defaults" now restores the exported values
+    # "Default settings" now restores the exported values
     w.b.widgets["min_iti"].setValue(1000)
     w._select_preset(None)
     assert w.params().min_iti == 4321
@@ -517,3 +522,58 @@ def test_short_pulses_survive_plot_downsampling(app, window):
     for key in ("opto", "cam1", "lick"):
         opts = window.curves[key].opts
         assert opts["autoDownsample"] and opts["downsampleMethod"] == "peak"
+
+
+# --- whisker settings per mouse ----------------------------------------------------
+
+def test_mouse_name_loads_its_whisker_settings(app, tmp_path):
+    from pybehaviour import mouse_settings
+
+    w = make_window(tmp_path, tmp_path / "presets")
+    mouse_settings.save("rigA", "JL015", SessionParams(wh_stim_amp_1=2.5, wh_stim_amp_mT_1=21))
+    name = w.b.widgets["mouse_name"]
+    name.setText("JL015")
+    name.editingFinished.emit()
+    assert (w.params().wh_stim_amp_1, w.params().wh_stim_amp_mT_1) == (2.5, 21)
+    assert "JL015" in w.online_text.text()
+    w.b.widgets["min_iti"].setValue(4321)
+    w._write_preset("task")
+    w._select_preset(None)
+    w._select_preset("task")  # presets keep the mouse's whisker settings
+    assert w.params().wh_stim_amp_1 == 2.5 and w.params().min_iti == 4321
+    w.b.widgets["wh_stim_amp_1"].setValue(3.0)
+    w.remember_mouse_settings()
+    name.setText("JL016")
+    name.editingFinished.emit()
+    assert w.params().wh_stim_amp_1 == 3.0 and "New mouse" in w.online_text.text()  # nothing known: kept
+    name.setText("JL015")
+    name.editingFinished.emit()
+    assert w.params().wh_stim_amp_1 == 3.0  # the value saved last for JL015
+    w.close()
+
+
+def test_browse_context_table_and_noise_folder(app, tmp_path, monkeypatch):
+    table = tmp_path / "ctx" / "rewarded_context.csv"
+    table.parent.mkdir()
+    table.write_text("mouse_name,rewarded_context\n", encoding="utf-8")
+    noise = tmp_path / "noise"
+    noise.mkdir()
+    for n in ("pink_noise.wav", "brown_noise.wav"):
+        (noise / n).write_bytes(b"")
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(table), ""))
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getExistingDirectory", lambda *a, **k: str(noise))
+    warnings = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: warnings.append(a[2]))
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.b.widgets["context_flag"].setChecked(True)
+    assert w.context_table_btn.isEnabled() and w.noise_dir_btn.isEnabled()
+    w.context_table_btn.click()
+    w.noise_dir_btn.click()
+    assert w.params().context_table_directory == str(table.parent)
+    assert w.params().bckg_noise_directory == str(noise) and not warnings
+    other = tmp_path / "ctx" / "other.csv"
+    other.write_text("", encoding="utf-8")
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(other), ""))
+    w.context_table_btn.click()
+    assert warnings and w.params().context_table_directory == str(table.parent)  # wrong file refused
+    w.close()

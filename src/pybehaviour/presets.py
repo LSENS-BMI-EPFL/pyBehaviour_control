@@ -1,17 +1,20 @@
 """Named settings presets per rig, so each person / task starts from their own values.
 
-A preset is a JSON file in the rig's presets folder (``presets_directory`` in
-the rig file)::
+A preset is a JSON file in the presets folder: presets/ of the installation, shared
+by every rig and machine, unless the rig file sets ``presets_directory``::
 
     {"params": {...SessionParams fields...}, "opto": {...}, "pdco": {...},
      "rig": "rig name", "saved": "2026-11-04T10:12:00"}
 
-Session-specific fields (date, time, weights) are never stored. Missing fields
-fall back to the rig defaults, so old presets keep working when new
-parameters are added.
+Presets hold the task settings only. Never stored: session-specific fields (date,
+time, weights), rig settings (``RIG_FIELDS``: data folder, valve opening, noise
+gains), which come from the rig file, and the whisker amplitudes, duration and
+scaling (``MOUSE_FIELDS``), remembered per mouse. Missing fields fall back to the
+rig defaults, so old presets keep working when new parameters are added.
 
 Start-up order (later wins):
-    SessionParams defaults → rig file ``defaults:`` → last used preset → --config file
+    SessionParams defaults → rig file (``behaviour_directory``, ``defaults:``) →
+    last used preset, or the --config file instead
 """
 
 from __future__ import annotations
@@ -25,11 +28,15 @@ from pathlib import Path
 
 from .modules.opto import OptoConfig
 from .modules.pdco import PdcoConfig, PulseParams
+from .mouse_settings import MOUSE_FIELDS
 from .params import PARAM_FIELDS, SessionParams
 
 # never part of a preset: they describe one session, not a way of running the task
 SESSION_ONLY = frozenset({"date", "session_time", "mouse_weight_before", "mouse_weight_after"})
-LAST_USED_FILE = ".last_used"
+# depend on the rig, not the task: set in the rig file, kept when a preset or old session is loaded
+RIG_FIELDS = frozenset({"behaviour_directory", "reward_valve_duration", "pink_noise_gain_db", "brown_noise_gain_db"})
+# depend on the mouse (coil placement): remembered per mouse, see mouse_settings.py
+NOT_IN_PRESET = SESSION_ONLY | RIG_FIELDS | MOUSE_FIELDS
 _NAME = re.compile(r"^[\w][\w .+-]{0,59}$")
 
 
@@ -41,7 +48,11 @@ def check_name(name: str) -> str:
 
 
 def preset_fields(params: SessionParams) -> dict:
-    return {k: v for k, v in dataclasses.asdict(params).items() if k not in SESSION_ONLY}
+    return {k: v for k, v in dataclasses.asdict(params).items() if k not in NOT_IN_PRESET}
+
+
+def rig_fields(params: SessionParams) -> dict:
+    return {k: getattr(params, k) for k in sorted(RIG_FIELDS)}
 
 
 def opto_to_dict(cfg: OptoConfig | None) -> dict | None:
@@ -81,8 +92,8 @@ class Preset:
     saved: str = ""
 
     def apply(self, base: SessionParams) -> SessionParams:
-        """``base`` with this preset's values on top (unknown / session-only keys ignored)."""
-        known = {k: v for k, v in self.params.items() if k in PARAM_FIELDS and k not in SESSION_ONLY}
+        """``base`` with this preset's values on top (unknown, session and rig keys ignored)."""
+        known = {k: v for k, v in self.params.items() if k in PARAM_FIELDS and k not in NOT_IN_PRESET}
         merged = dataclasses.asdict(base) | known
         return SessionParams.from_dict(merged)
 
@@ -92,8 +103,12 @@ class Preset:
 
 
 class PresetStore:
-    def __init__(self, directory: Path | str):
+    """Presets in one folder. The last used one is remembered per machine (app_state), under
+    ``key`` (default: the folder), so rigs sharing a folder each reopen their own."""
+
+    def __init__(self, directory: Path | str, key: str | None = None):
         self.directory = Path(directory)
+        self.key = key or str(self.directory.resolve())
 
     def _path(self, name: str) -> Path:
         return self.directory / f"{check_name(name)}.json"
@@ -104,7 +119,7 @@ class PresetStore:
         return sorted((p.stem for p in self.directory.glob("*.json")), key=str.lower)
 
     def load(self, name: str) -> Preset:
-        data = json.loads(self._path(name).read_text(encoding="utf-8"))
+        data = json.loads(self._path(name).read_text(encoding="utf-8-sig"))
         return Preset(name=name, params=data.get("params", {}), opto=opto_from_dict(data.get("opto")),
                       pdco=pdco_from_dict(data.get("pdco")), rig=data.get("rig", ""), saved=data.get("saved", ""))
 
@@ -124,42 +139,46 @@ class PresetStore:
     def delete(self, name: str) -> None:
         self._path(name).unlink(missing_ok=True)
         if self.last_used() == name:
-            (self.directory / LAST_USED_FILE).unlink(missing_ok=True)
+            self.set_last_used(None)
 
     def last_used(self) -> str | None:
-        path = self.directory / LAST_USED_FILE
-        if not path.exists():
-            return None
-        name = path.read_text(encoding="utf-8").strip()
+        from .app_state import last_preset
+
+        name = last_preset(self.key)
         return name if name in self.names() else None
 
     def set_last_used(self, name: str | None) -> None:
-        path = self.directory / LAST_USED_FILE
-        if name is None:
-            path.unlink(missing_ok=True)
-            return
-        self.directory.mkdir(parents=True, exist_ok=True)
-        path.write_text(check_name(name), encoding="utf-8")
+        from .app_state import remember_preset
 
+        remember_preset(self.key, None if name is None else check_name(name))
 
 def startup_params(rig_defaults: dict, store: PresetStore | None, config_file: Path | None = None
                    ) -> tuple[SessionParams, Preset | None]:
-    """Parameters the GUI opens with, and the preset they came from (if any)."""
+    """Parameters the GUI opens with, and the preset they came from (if any).
+
+    With ``config_file`` the settings come from that file instead of the last used preset.
+    """
     params = SessionParams.from_dict(dataclasses.asdict(SessionParams()) | (rig_defaults or {}))
+    if config_file is not None:
+        return load_session_settings(params, config_file), None
     preset = None
     if store is not None and (name := store.last_used()):
         preset = store.load(name)
         params = preset.apply(params)
-    if config_file is not None:
-        params = load_session_settings(params, config_file)
     return params, preset
 
 
 def load_session_settings(base: SessionParams, config_file: Path | str) -> SessionParams:
-    """Task settings from a previous session's session_config.json (MATLAB or Python).
+    """Task settings from a previous session's session_config.json (MATLAB or Python), or from a
+    preset file. Date, time, weights and rig settings (``RIG_FIELDS``) keep their values in ``base``.
+    The mouse's whisker settings (``MOUSE_FIELDS``) are copied: the file was chosen for that mouse.
 
-    Date, time and weights of that session are not copied.
+    Raises ValueError if the file holds no known setting (wrong file).
     """
-    data = json.loads(Path(config_file).read_text(encoding="utf-8"))
-    data = {k: v for k, v in data.items() if k not in SESSION_ONLY}
+    data = json.loads(Path(config_file).read_text(encoding="utf-8-sig"))
+    if isinstance(data, dict) and isinstance(data.get("params"), dict):
+        data = data["params"]  # a preset file
+    if not isinstance(data, dict) or not set(data) & set(PARAM_FIELDS):
+        raise ValueError(f"{config_file} contains no settings (expected a session_config.json or a preset file).")
+    data = {k: v for k, v in data.items() if k in PARAM_FIELDS and k not in SESSION_ONLY | RIG_FIELDS}
     return SessionParams.from_dict(dataclasses.asdict(base) | data)

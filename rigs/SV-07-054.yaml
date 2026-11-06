@@ -1,4 +1,4 @@
-﻿# Rig wiring for SV-07-054 (Dev1/Dev2 renamed in NI MAX on 2026-11-03 to match the cabling).
+# Rig wiring for SV-07-054 (Dev1/Dev2 renamed in NI MAX on 2026-11-03 to match the cabling).
 # Values shown are the defaults (same as MATLAB defining_sessions.m), so any
 # key can be left out. Device names (Dev1, Dev2) must match NI MAX exactly;
 # the program lists the devices it finds if one is missing.
@@ -58,15 +58,21 @@ calibration:                # coil calibration (Tools > Coil calibration)
   directory: C:/calibration    # results go to <directory>/<mouse>/<mouse>_<date>/
 
 # Default GUI values for this rig. Any setting name from session_config.json.
-# Personal / per-task values belong in presets (saved from the GUI), not here.
+# Rig settings (reward_valve_duration, pink_noise_gain_db, brown_noise_gain_db, and
+# behaviour_directory above) are always taken from here, never from presets: the GUI
+# writes them back with "Save to rig file". Per-task values belong in presets.
 defaults:
-  lick_threshold: 0.03
-  min_iti: 6000
-  max_iti: 10000
+  lick_threshold: 0.03        # Trial timeline: Lick threshold [V]
+  min_iti: 6000               # Trial timeline: Inter-trial interval (from) [ms]
+  max_iti: 10000              # Trial timeline: Inter-trial interval (to) [ms]
+  brown_noise_gain_db: 0      # Context: Brown noise gain [dB]
+  reward_valve_duration: 62   # Reward: Valve opening [ms]
+  pink_noise_gain_db: 0       # Context: Pink noise gain [dB]
 
-# Presets saved from the GUI ("Save as…"). Relative to this file.
-# Default: presets/<rig name>/
-# presets_directory: presets/SV-07-054
+# Presets saved from the GUI ("Save as…"). Default: presets/ of the installation,
+# shared by all rigs (commit them to share through git). A shared network folder
+# works too; relative paths are relative to this file.
+# presets_directory: M:/analysis/behaviour_presets
 
 # At startup, pulse the stimulus trigger and check it shows up on the logged
 # trial_ttl input. Refuses to start if not (wrong device names / wiring).

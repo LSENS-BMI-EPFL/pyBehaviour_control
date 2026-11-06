@@ -304,6 +304,7 @@ class CalibrationWindow(QtWidgets.QWidget):
                                           ) != QtWidgets.QMessageBox.Yes:
             return
         self.main_window.set_params(p.copy(**changes))
+        self.main_window.remember_mouse_settings()  # the calibration belongs to this mouse
         self.status.setText(self.status.text() + "\nWhisker mT values updated.")
 
     def _browse(self) -> None:

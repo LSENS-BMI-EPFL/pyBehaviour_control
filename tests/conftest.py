@@ -97,3 +97,9 @@ def run_session(tmp_path, params, licks=(), seconds=10.0, **kw) -> Sim:
 @pytest.fixture
 def params():
     return quick_params(wh_stim_weight_1=1)
+
+
+@pytest.fixture(autouse=True)
+def _own_state_folder(tmp_path, monkeypatch):
+    """Last rig file / last preset go to a temporary folder, never to the user's ~/.pybehaviour."""
+    monkeypatch.setenv("PYBEHAVIOUR_HOME", str(tmp_path / "pybehaviour_home"))

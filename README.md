@@ -24,7 +24,7 @@ uv run pytest               # under a minute, no hardware needed
 uv run pybehaviour                               # the rig file and preset used last time
 uv run pybehaviour --rig rigs/my_rig.yaml        # this rig file (remembered for next time)
 uv run pybehaviour --sim                         # no hardware, simulated mouse
-uv run pybehaviour --rig rigs/my_rig.yaml --config path/to/session_config.json   # start from saved parameters
+uv run pybehaviour --rig rigs/my_rig.yaml --config path/to/session_config.json   # task settings of a previous session (or a preset file)
 uv run pybehaviour-replay path/to/session_folder # re-run a recorded session through the task logic
 uv run pybehaviour-replay path/to/session_folder --thresholds 0.03,0.04,0.05   # if the lick threshold was changed during the session
 ```
@@ -75,23 +75,43 @@ after changing one, regenerate it:
 uv run python -m pybehaviour.wiring rigs/<rig>.yaml     # docs/wiring/<rig>.svg + .png
 ```
 
-## Presets and rig defaults
+## Presets, rig settings, mouse settings and rig defaults
 
-Each rig starts from its own defaults, and each person or task can keep a
-named preset, so nobody has to re-enter their settings when the GUI opens.
+Settings that depend on the rig live in the rig file, the whisker stimulus is
+remembered per mouse, and settings that depend on the task or the person live in
+presets, shared by every rig.
 
+- **Rig settings**: data folder (`behaviour_directory`), valve opening
+  (`reward_valve_duration`) and noise gains (`pink_noise_gain_db`,
+  `brown_noise_gain_db`, speaker calibration). Always read from the rig file;
+  presets and old sessions never change them. Change one in the GUI and a line
+  under the preset bar offers *Save to rig file* (backup `.yaml.bak` kept);
+  otherwise the change lasts until the GUI closes. Valve and noise calibration
+  set them the same way.
+- **Mouse settings**: whisker amplitudes (V and mT), pulse duration and scaling
+  factor depend on how the coil sits on the mouse. They are saved per mouse and
+  rig (in `~/.pybehaviour/mice/`) when a session starts and when the coil
+  calibration fills the mT column, and loaded when the mouse name is entered.
+  A mouse without saved settings takes them from its latest `session_config.json`
+  in the data folder (MATLAB sessions too); a new mouse keeps the current values.
+  "Several amplitudes" and the weights stay task settings (presets).
 - **Rig defaults**: a `defaults:` section in the rig file sets starting values
   for that rig (any name from `session_config.json`, e.g. `lick_threshold: 0.05`).
-- **Presets**: the bar above the settings. *Save as…* stores all current
-  settings (including the opto and PdCO windows) under a name, e.g.
-  "Jules whisker psy". Pick a preset to load it. The last one used opens
-  automatically next time. The bar shows when settings differ from the saved preset.
-  Presets are JSON files in `rigs/presets/<rig name>/` (or `presets_directory`
-  in the rig file), so they can be shared through git.
-- *Settings ▸ Load settings from a previous session…* copies the task settings
-  from any `session_config.json` (MATLAB or Python), without its date or weights.
+  *Default settings* in the preset list (or *Settings ▸ Reset to default settings*)
+  goes back to them, without a preset.
+- **Presets**: the bar above the settings. *Save as…* stores the task settings
+  (including the opto and PdCO windows) under a name, e.g. "Jules whisker psy".
+  Pick a preset to load it. The last one used on this rig opens automatically
+  next time (remembered per computer). The bar shows when settings differ from
+  the saved preset. Presets are JSON files in [presets/](presets), shared by all
+  rigs: commit and pull them to see the same list on every machine. For instant
+  sharing without git, point every rig file to a network folder:
+  `presets_directory: M:/analysis/behaviour_presets`.
+- *Settings ▸ Load settings from a previous session…* and `--config` copy the task
+  settings from any `session_config.json` (MATLAB or Python) or preset file,
+  without its date, weights or rig settings (its whisker values are kept).
 
-Order at start-up: rig defaults → last used preset → `--config` file.
+At start-up: rig file → last used preset, or the `--config` file instead.
 
 **Export from the GUI**: set things up, then *Settings ▸ Export settings as rig
 defaults…* shows the `defaults:` block (only what differs from the built-in
@@ -138,8 +158,8 @@ max hold.
 The *Background noise* tab (or *Calibrate noise levels…* in the Context tab)
 plays the context task's pink or brown noise continuously. Set each noise's
 gain until the meter reads the same for both: the gains are the task settings
-`pink_noise_gain_db` / `brown_noise_gain_db` (Context tab, saved in presets and
-`session_config.json`). During a session, changing them in the Context tab is
+`pink_noise_gain_db` / `brown_noise_gain_db` (Context tab; rig settings, saved
+in the rig file and in `session_config.json`). During a session, changing them in the Context tab is
 heard immediately. The noise now loops, so it never stops mid-block.
 
 ## Using the GUI
