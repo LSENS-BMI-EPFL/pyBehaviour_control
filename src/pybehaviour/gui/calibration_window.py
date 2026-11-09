@@ -223,24 +223,26 @@ class CalibrationWindow(QtWidgets.QWidget):
         run = self.run
         if run is None:
             return
-        n = len(run.result.trial_amps)
+        done = run.done.is_set()  # read before the snapshot so a finished run is drawn in full
+        res = run.result.snapshot()
+        n = len(res.trial_amps)
         plan = run.plan
         t = (np.arange(plan.n_samples) / plan.rate * 1000) - plan.baseline_ms
         window = (t >= -2) & (t <= plan.duration_ms + 15)
-        scale = run.result.mT_per_volt_sensor
+        scale = res.mT_per_volt_sensor
         n_base = int(plan.baseline_ms * plan.rate / 1000 * 0.9)
         for i in range(self._n_drawn, n):
-            amp = run.result.trial_amps[i]
+            amp = res.trial_amps[i]
             color = self._colors.get(amp, theme.AUDITORY)
-            flux = run.result.flux_v[i]
+            flux = res.flux_v[i]
             offset = flux[:n_base].mean() if n_base else 0.0
             self.stim_plot.plot(t[window], plan.waveform(amp)[window], pen=theme.pen(color, 1.5))
             self.field_plot.plot(t[window], (flux[window] - offset) * scale, pen=theme.pen(color, 1.5))
         self._n_drawn = n
         self.progress.setValue(n)
         if n:
-            self._show_results()
-        if run.done.is_set():
+            self._show_results(res)
+        if done:
             self._timer.stop()
             self._set_running(False)
             if run.error:
@@ -249,8 +251,7 @@ class CalibrationWindow(QtWidgets.QWidget):
             elif n:
                 self._save()
 
-    def _show_results(self) -> None:
-        res = self.run.result
+    def _show_results(self, res) -> None:
         rows = res.summary()
         self.table.setRowCount(len(rows))
         for r, row in enumerate(rows):

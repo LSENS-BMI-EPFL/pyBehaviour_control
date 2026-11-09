@@ -71,10 +71,18 @@ class CalibrationResult:
     mT_per_volt_sensor: float  # teslameter scale
     trial_amps: list[float] = field(default_factory=list)
     flux_v: list[np.ndarray] = field(default_factory=list)  # raw teslameter voltage per trial
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def add(self, amp: float, flux: np.ndarray) -> None:
-        self.trial_amps.append(float(amp))
-        self.flux_v.append(np.asarray(flux, dtype=float))
+        # the run thread appends while the GUI polls: both lists change together
+        with self._lock:
+            self.trial_amps.append(float(amp))
+            self.flux_v.append(np.asarray(flux, dtype=float))
+
+    def snapshot(self) -> "CalibrationResult":
+        """Consistent copy (same number of amplitudes and traces) safe to read while the run continues."""
+        with self._lock:
+            return CalibrationResult(self.plan, self.mT_per_volt_sensor, list(self.trial_amps), list(self.flux_v))
 
     @property
     def peak_mT(self) -> np.ndarray:
