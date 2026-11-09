@@ -32,7 +32,7 @@ from ..planner import CONTEXTS
 from .. import mouse_settings
 from ..mouse_settings import MOUSE_FIELDS
 from ..presets import NOT_IN_PRESET, RIG_FIELDS, Preset, PresetStore, check_name, load_session_settings, rig_fields
-from ..results import compute_performance, compute_reward_volume, early_lick_rate, sliding_rates
+from ..results import compute_performance, compute_reward_volume, sliding_rates
 from ..rig import Rig
 from ..rig.config import RigConfig
 from ..session import Session
@@ -693,16 +693,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.perf_plot.addItem(it, ignoreBounds=True)
         self._hover_proxy = pg.SignalProxy(self.perf_plot.scene().sigMouseMoved, rateLimit=30, slot=self._perf_hover)
 
-        self.early_plot = perf.addPlot(row=1, col=0)
-        theme.style_plot(self.early_plot, left="", bottom="Trial (all attempts) · early-lick rate")
-        self.early_plot.setYRange(-0.05, 1.1, padding=0)
-        self.early_plot.setMouseEnabled(False, False)
-        self.early_plot.getAxis("left").setTicks([[(0, "0%"), (0.5, "50%"), (1.0, "100%")]])
-        self.early_plot.getAxis("left").setWidth(48)
-        self.early_curve = self.early_plot.plot(pen=theme.pen(theme.TEXT_2))
-        self.early_plot.setXRange(1, 20, padding=0)
-        perf.ci.layout.setRowStretchFactor(0, 3)
-        perf.ci.layout.setRowStretchFactor(1, 1)
         pv.addWidget(perf, 1)
         split.addWidget(perf_card)
         split.setSizes([600, 380])
@@ -1442,10 +1432,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.perf_key_labels["wh"].setText("Whisker hit" if p.wh_reward else "Whisker hit (not rewarded)")
         if x.size:
             self.perf_plot.setXRange(1, max(x[-1] * 1.15, 5), padding=0)
-        el = early_lick_rate(self.rows, p.last_recent_trials)
-        self.early_curve.setData(np.arange(1, len(el) + 1), el)
-        if el.size:  # was stuck at trials 1-20
-            self.early_plot.setXRange(1, max(el.size * 1.15, 5), padding=0)
 
     def _shade_contexts(self, completed: list[dict]) -> None:
         """Context task: a band per block of completed trials, green when rewarded, purple when not."""
@@ -1536,7 +1522,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.reward_detail.setText("")
         for tile in self.tiles.values():
             tile.set("–")
-        for c in list(self.perf_curves.values()) + [self.early_curve] + list(self.curves.values()):
+        for c in list(self.perf_curves.values()) + list(self.curves.values()):
             c.setData([], [])
         for lab in self.perf_end_labels.values():
             lab.setVisible(False)

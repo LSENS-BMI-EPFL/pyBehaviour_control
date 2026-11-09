@@ -8,7 +8,7 @@ import pytest
 
 from conftest import quick_params, run_session
 from pybehaviour.results import (
-    RESULT_COLUMNS, compute_performance, compute_reward_volume, early_lick_rate,
+    RESULT_COLUMNS, compute_performance, compute_reward_volume,
     format_value, sliding_rates,
 )
 from pybehaviour.trial import Perf
@@ -84,6 +84,3 @@ def test_sliding_rates_exclude_perf6_rows():
     assert np.isnan(rates["fa"][0])
 
 
-def test_early_lick_rate():
-    rows = [dict(early_lick=e) for e in [0, 1, 0, 0]]
-    np.testing.assert_allclose(early_lick_rate(rows, 1), [0, 0.5, 0.5, 0])

@@ -127,9 +127,3 @@ def sliding_rates(rows: list[dict], window: int) -> dict[str, np.ndarray]:
             out["light"][i] = np.sum(perf[s] == Perf.LIGHT_HIT) / np.sum(light[s])
             out["fa"][i] = np.sum(perf[s] == Perf.FALSE_ALARM) / np.sum(catch[s])
     return out
-
-
-def early_lick_rate(rows: list[dict], window: int) -> np.ndarray:
-    """Fraction of early licks over the last window+1 trials (MATLAB max(1,i-win):i)."""
-    el = np.array([x["early_lick"] for x in rows], dtype=float)
-    return np.array([el[max(0, i - window): i + 1].mean() for i in range(len(el))])
