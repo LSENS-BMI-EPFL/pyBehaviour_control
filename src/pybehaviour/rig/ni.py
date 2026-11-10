@@ -54,6 +54,15 @@ def _stop_task(task) -> None:
             warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
 
 
+def even_samples(out: np.ndarray) -> np.ndarray:
+    """Some AO cards (e.g. PCIe-6738) refuse a write when samples x channels is odd
+    (DAQmx error -200692). Repeat the last sample once if needed: it is the idle
+    value (laser off, galvos in place), so the output does not change."""
+    if (out.shape[0] * out.shape[1]) % 2:
+        out = np.vstack([out, out[-1:]])
+    return out
+
+
 class RigError(RuntimeError):
     """Problem with the rig setup, with a message meant for the user."""
 
@@ -292,6 +301,7 @@ class NiRig:
         if task is None:
             raise RigError("Opto session requested but 'opto.enabled' is false in the rig file.")
         _stop_task(task)
+        out = even_samples(out)
         task.timing.cfg_samp_clk_timing(self.opto_rate, sample_mode=AcquisitionType.FINITE, samps_per_chan=out.shape[0])
         self._opto_writer.write_many_sample(np.ascontiguousarray(out.T, dtype=np.float64))
         self._opto_idle = [-1.0, float(out[-1, 1]), float(out[-1, 2])]
@@ -314,6 +324,7 @@ class NiRig:
         """Calibration pulse outside a session (Opto window 'One trial')."""
         if not self.cfg.opto.enabled:
             raise RigError("'opto.enabled' is false in the rig file.")
+        out = even_samples(out)
         with nidaqmx.Task("opto_test") as t:
             for ch in self.cfg.opto.ao:
                 t.ao_channels.add_ao_voltage_chan(ch, min_val=-10, max_val=10)

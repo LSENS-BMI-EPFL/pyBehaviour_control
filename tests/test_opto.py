@@ -248,3 +248,18 @@ def test_logged_opto_trace_follows_the_laser_command(tmp_path):
     assert names[8] == "opto"
     assert trace.max() == pytest.approx(2.0) and trace.min() == LASER_OFF_V
     assert sim.rig.opto_at(np.array([start - 0.5]))[0] == LASER_OFF_V  # off between trials
+
+
+def test_opto_output_has_an_even_number_of_values():
+    """Some NI cards (PCIe-6738) refuse samples x channels odd (DAQmx -200692)."""
+    from pybehaviour.rig.ni import even_samples
+    laser = opto_waveform(OptoConfig(pulse_shape="cosine", envelope="Gaussian"), 5.0, FS)
+    out = np.column_stack([laser, np.full(laser.size, 0.3), np.full(laser.size, -0.2)])
+    assert out.shape[0] % 2 == 1  # 500001 samples: the case that failed on setup_NP
+    padded = even_samples(out)
+    assert padded.size % 2 == 0
+    assert padded.shape[0] == out.shape[0] + 1
+    np.testing.assert_array_equal(padded[:-1], out)
+    np.testing.assert_array_equal(padded[-1], out[-1])  # laser stays off, galvos stay put
+    even = out[:-1]
+    assert even_samples(even) is even
