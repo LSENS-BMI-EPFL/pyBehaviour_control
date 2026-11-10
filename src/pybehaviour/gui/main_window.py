@@ -838,6 +838,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.live_plots[key].getAxis("bottom").setLabel("")
         for row in range(len(visible), len(self.live_specs)):
             ci.layout.setRowStretchFactor(row, 0)
+        # removing the rows shrinks the plot area, and pyqtgraph only stretches it back to the
+        # panel on a resize: without this the traces stayed squeezed to the left (Windows)
+        self.live.resizeEvent(None)
 
     # --- module windows ----------------------------------------------------------------
     def _show_module_window(self, which: str) -> None:

@@ -552,6 +552,20 @@ def test_opto_row_only_in_opto_sessions(app, window):
     assert "opto" not in window._live_visible
 
 
+def test_live_rows_fill_the_panel_after_a_row_change(app, window):
+    """On Windows, adding the opto row left the plots squeezed to the left until a resize."""
+    from PySide6 import QtCore
+
+    window.show()
+    app.processEvents()
+    ci = window.live.ci
+    ci.setGeometry(QtCore.QRectF(0, 0, 150, 100))  # what Qt left after the rows were re-added
+    window.b.widgets["opto_session"].setChecked(True)
+    app.processEvents()
+    assert ci.geometry().width() == window.live.width()
+    assert ci.geometry().height() == window.live.height()
+
+
 def test_short_pulses_survive_plot_downsampling(app, window):
     """The live view draws ~3000 points per trace (not 50 000), and a 2 ms camera pulse still shows."""
     import numpy as np
