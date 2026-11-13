@@ -48,8 +48,8 @@ class ExportDefaultsDialog(QtWidgets.QDialog):
         row = QtWidgets.QHBoxLayout()
         copy = QtWidgets.QPushButton("Copy")
         copy.clicked.connect(lambda: QtWidgets.QApplication.clipboard().setText(self.text()))
-        save = QtWidgets.QPushButton("Save to file…")
-        save.clicked.connect(self.save_to_file)
+        self.save_btn = save = QtWidgets.QPushButton("Save to file…")
+        save.clicked.connect(lambda: self.save_to_file())  # clicked sends a bool; don't take it as the path
         self.write_btn = QtWidgets.QPushButton(f"Write into {self.rig_file.name}" if self.rig_file else "Write into rig file")
         self.write_btn.setEnabled(self.rig_file is not None)
         self.write_btn.setToolTip(str(self.rig_file) if self.rig_file else "No rig file (simulation)")

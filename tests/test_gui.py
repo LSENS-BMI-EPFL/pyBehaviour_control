@@ -526,6 +526,11 @@ def test_export_settings_as_rig_defaults(app, tmp_path, monkeypatch):
 
     dlg.save_to_file(str(tmp_path / "exported.yaml"))
     assert yaml.safe_load((tmp_path / "exported.yaml").read_text(encoding="utf-8"))["defaults"]["min_iti"] == 4321
+    # the button opens the file dialog (clicked's bool must not be taken as the path)
+    picked = tmp_path / "from_button.yaml"
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: (str(picked), ""))
+    dlg.save_btn.click()
+    assert yaml.safe_load(picked.read_text(encoding="utf-8"))["defaults"]["min_iti"] == 4321
 
     monkeypatch.setattr(QtWidgets.QMessageBox, "question", lambda *a, **k: QtWidgets.QMessageBox.Yes)
     dlg.write_rig_file()
