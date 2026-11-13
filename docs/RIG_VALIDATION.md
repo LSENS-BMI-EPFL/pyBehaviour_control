@@ -40,6 +40,7 @@ so the MATLAB code keeps working too.
 | Camera frames / ScanImage gate | Stim DO lines | Frame train during the trial; gate high for the trial |
 | Reward | Valve line after a hit | Opens `reward_valve_duration` ms (+ delay), once |
 | Manual reward | Button | One valve opening, also on catch trials |
+| Manual reward after a hit | `uv run python scripts/check_manual_reward.py rigs/<rig>.yaml` (pybehaviour closed, beaker under the spout) | `PASS`: the next trial can start. Before the fix the session stopped with DAQmx error -200279 |
 | Lick detection | Touch the spout during the response window | Hit within ~10–20 ms; `reaction_time` matches the log |
 | Early lick | Touch during baseline | Trial aborted, stimulus not played, 2 s + timeout |
 | PdCO | TTL lines with each design | Same pulses as the TTL GUI preview |

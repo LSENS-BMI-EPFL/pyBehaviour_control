@@ -280,7 +280,11 @@ class NiRig:
             return  # a reward is being delivered right now
         self._load_reward(valve_pulse(valve_ms, self.reward_rate), triggered=False)
         self._tasks["reward"].wait_until_done(timeout=2.0)
-        self._load_reward(self._reward_vec, triggered=True)  # re-arm this trial's reward
+        # Re-arm this trial's reward only if it has not been given yet. Re-arming it after
+        # a hit left it waiting for a trigger that never comes: reward_idle() stayed False,
+        # the next trial never started, and the lick input overflowed (-200279).
+        if not self._reward_triggered:
+            self._load_reward(self._reward_vec, triggered=True)
 
     def _load_reward(self, vec: np.ndarray, triggered: bool) -> None:
         task = self._tasks["reward"]
