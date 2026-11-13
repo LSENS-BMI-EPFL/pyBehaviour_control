@@ -8,7 +8,8 @@ Runs the control loop's pattern on the real NI cards (read a lick chunk, ask whe
 valve output is idle) through a normal hit, then a hit followed by a manual reward.
 Before the fix, the valve output stayed busy after the manual reward, each check took
 ~15 ms, the loop fell behind and stopped after ~25 s with DAQmx error -200279.
-Pass: "valve idle" after the manual reward and the loop never more than ~0.1 s behind.
+Pass: "valve idle" after the manual reward and the loop never more than 0.5 s behind
+(MAX_LAG_S; a working loop stays well below it, the bug puts it seconds behind).
 """
 
 import sys
@@ -21,6 +22,7 @@ from pybehaviour.rig.ni import NiRig
 from pybehaviour.stimuli import valve_pulse
 
 VALVE_MS = 5.0
+MAX_LAG_S = 0.5  # pass limit: how far the loop may fall behind the card
 
 
 def run(rig, seconds, label, until_idle=False) -> tuple[bool, float]:
@@ -63,8 +65,8 @@ def main(rig_file: str) -> int:
         return 1
     finally:
         rig.close()
-    ok = idle and lag < 0.5
-    print("PASS" if ok else "FAIL: the valve output stayed busy or the loop fell behind")
+    ok = idle and lag < MAX_LAG_S
+    print("PASS" if ok else f"FAIL: the valve output stayed busy or the loop fell more than {MAX_LAG_S:g} s behind")
     return 0 if ok else 1
 
 
