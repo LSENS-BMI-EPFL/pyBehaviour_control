@@ -131,6 +131,11 @@ variable names, plus CSV and JSON). *Use for whisker amplitudes* fills the
 "Amplitude (mT)" column. Channels and teslameter scale are in the rig file's
 `calibration:` section.
 
+*Saved calibrations for this mouse* lists the earlier calibrations of the
+mouse (newest first), with the amplitude (V) each one predicts for a target
+field (25 mT by default). A `*` marks a prediction outside the amplitudes
+tested. Calibrations made with the MATLAB script are not listed.
+
 ## Valve calibration
 
 *Tools ▸ Valve calibration* (or *Calibrate valve…* in the Reward tab) opens

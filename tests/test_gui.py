@@ -335,6 +335,41 @@ def test_coil_calibration_fills_whisker_mT(app, tmp_path, monkeypatch):
     p = w.params()
     assert p.wh_stim_amp_mT_1 == pytest.approx(10, rel=0.05)  # FakeRig coil: 10 mT/V
     assert p.wh_stim_amp_mT_2 == pytest.approx(20, rel=0.05)
+    # the run just saved is listed with the amplitude predicted for the target field
+    assert cw.past_table.rowCount() == 1
+    cw.target.setValue(15)
+    assert cw.past_table.horizontalHeaderItem(6).text() == "V for 15 mT"
+    assert float(cw.past_table.item(0, 6).text()) == pytest.approx(1.5, rel=0.05)
+    cw.target.setValue(30)  # 3 V, beyond the 2 V tested
+    assert cw.past_table.item(0, 6).text().endswith("*") and "extrapolated" in cw.past_note.text()
+    assert "30 mT ≈ " in cw.fit_text.toPlainText()
+    for x in (cw, w):
+        x.close()
+
+
+def test_coil_calibration_lists_past_calibrations_on_open(app, tmp_path):
+    from pybehaviour.calibration import CalibrationPlan, CalibrationResult, output_folder, save_result
+
+    plan = CalibrationPlan(amplitudes_v=[1.0, 2.0], repeats=1, baseline_ms=50, trial_ms=100)
+    for date, k in (("20261101", 10.0), ("20261110", 12.5)):
+        res = CalibrationResult(plan, 100.0)
+        for a in plan.trial_amplitudes():
+            res.add(a, plan.waveform(a) * k / 100.0)
+        save_result(res, output_folder(tmp_path / "cal", "PAST01", date), "PAST01", date)
+    w = make_window(tmp_path, tmp_path / "presets")
+    w.rig_config.calibration.directory = str(tmp_path / "cal")
+    w.set_params(w.params().copy(mouse_name="PAST01"))
+    w._open_calibration()
+    cw = w.calibration_window
+    t = cw.past_table
+    assert [t.item(r, 0).text() for r in range(t.rowCount())] == ["2026-11-10", "2026-11-01"]
+    assert t.item(0, 3).text() == "1, 2" and t.horizontalHeaderItem(6).text() == "V for 25 mT"
+    assert float(t.item(0, 6).text()) == pytest.approx(2.0, rel=1e-3)
+    assert t.item(1, 6).text() == "2.50 *"  # 10 mT/V: 2.5 V is beyond the 2 V tested
+    assert "1 V: 12.50 ± 0.00 mT" in t.item(0, 0).toolTip()
+    cw.name.setText("OTHER")
+    cw.name.editingFinished.emit()
+    assert t.rowCount() == 0 and "No saved calibration" in cw.past_note.text()
     for x in (cw, w):
         x.close()
 

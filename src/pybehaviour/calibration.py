@@ -27,6 +27,8 @@ import numpy as np
 from .stimuli import fit_length, whisker_waveform
 from .trial import TrialSpec
 
+SUMMARY_SUFFIX = "_stim_coil_calibration_summary.json"  # <mouse>_<date> + this; read back by find_past()
+
 
 @dataclass
 class CalibrationPlan:
@@ -123,6 +125,67 @@ class CalibrationResult:
                 return row["mean_mT"]
         return self.fit()["mT_per_V"] * amplitude_v
 
+    def volts_for(self, target_mT: float) -> float | None:
+        """Command amplitude (V) predicted by the fit for a target field; None if there is no usable fit."""
+        return volts_for_field(self.fit()["mT_per_V"], target_mT)
+
+
+def volts_for_field(mT_per_V: float, target_mT: float) -> float | None:
+    """V = target mT / (mT per V), from the fit through the origin; None if the fit is missing or not positive."""
+    if not np.isfinite(mT_per_V) or mT_per_V <= 0:
+        return None
+    return float(target_mT / mT_per_V)
+
+
+@dataclass
+class PastCalibration:
+    """One saved coil calibration, read back from its ``_summary.json``."""
+    date: str
+    folder: Path
+    duration_ms: float
+    scaling_factor: float
+    mT_per_V: float
+    r2: float
+    summary: list[dict]  # per amplitude: amplitude_V, mean_mT, sd_mT, n
+
+    @property
+    def tested_v(self) -> list[float]:
+        return [r["amplitude_V"] for r in self.summary]
+
+    def volts_for(self, target_mT: float) -> float | None:
+        return volts_for_field(self.mT_per_V, target_mT)
+
+    def in_tested_range(self, volts: float) -> bool:
+        """True if ``volts`` lies between the smallest and largest amplitude tested (no extrapolation), to 0.01 V."""
+        mags = [abs(v) for v in self.tested_v]
+        return bool(mags) and min(mags) - 0.01 <= abs(volts) <= max(mags) + 0.01
+
+
+def find_past(directory: Path | str, mouse: str) -> list[PastCalibration]:
+    """Saved calibrations for a mouse (``<directory>/<mouse>/<mouse>_<date>/``), newest first.
+
+    Unreadable summary files are skipped. Calibrations made with the MATLAB script have no summary and are not listed.
+    """
+    mouse = mouse.strip()
+    base = Path(directory) / mouse
+    if not mouse or not base.is_dir():
+        return []
+    found = []
+    for path in base.glob(f"*/*{SUMMARY_SUFFIX}"):
+        try:
+            d = json.loads(path.read_text(encoding="utf-8"))
+            plan, fit = d["plan"], d["fit"]
+            found.append(PastCalibration(
+                date=str(d["date"]), folder=path.parent, duration_ms=float(plan["duration_ms"]),
+                scaling_factor=float(plan["scaling_factor"]), mT_per_V=float(fit["mT_per_V"]),
+                r2=float(fit["r2"]) if fit.get("r2") is not None else float("nan"),
+                summary=[{k: r[k] for k in ("amplitude_V", "mean_mT", "sd_mT", "n")} for r in d["summary"]],
+            ))
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    found.sort(key=lambda c: (c.date, c.folder.name), reverse=True)
+    return found
+
 
 def output_folder(directory: Path | str, mouse: str, date: str) -> Path:
     """<directory>/<mouse>/<mouse>_<date>, as calibration_coil.m."""
@@ -138,7 +201,8 @@ def save_result(result: CalibrationResult, folder: Path, mouse: str, date: str) 
     stims = np.vstack([plan.waveform(a) for a in result.trial_amps]) if result.trial_amps else np.zeros((0, plan.n_samples))
     peaks = result.peak_mT
     n_half = plan.duration_ms / 2 * plan.rate / 1000
-    paths = {"mat": folder / f"{stem}.mat", "csv": folder / f"{stem}_trials.csv", "json": folder / f"{stem}_summary.json"}
+    paths = {"mat": folder / f"{stem}.mat", "csv": folder / f"{stem}_trials.csv",
+             "json": folder / f"{mouse}_{date}{SUMMARY_SUFFIX}"}
     savemat(paths["mat"], {
         "mouse_name": mouse, "stim_name": f"task_whisker_{plan.duration_ms:g}ms",
         "n_trials": len(result.trial_amps),

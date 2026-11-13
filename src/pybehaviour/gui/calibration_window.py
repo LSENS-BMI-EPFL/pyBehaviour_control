@@ -15,7 +15,7 @@ import numpy as np
 import pyqtgraph as pg
 from PySide6 import QtCore, QtWidgets
 
-from ..calibration import CalibrationPlan, CalibrationRun, output_folder, save_result
+from ..calibration import CalibrationPlan, CalibrationRun, find_past, output_folder, save_result
 from ..rig.config import RigConfig
 from . import theme
 
@@ -33,7 +33,7 @@ class CalibrationWindow(QtWidgets.QWidget):
         self.session_running = session_running
         self.run: CalibrationRun | None = None
         self.saved_to: str = ""
-        self.resize(1200, 760)
+        self.resize(1200, 860)
 
         root = QtWidgets.QHBoxLayout(self)
         left = QtWidgets.QVBoxLayout()
@@ -143,10 +143,92 @@ class CalibrationWindow(QtWidgets.QWidget):
         self.apply_btn.clicked.connect(self.apply_to_task)
         right.addWidget(self.apply_btn)
 
+        right.addWidget(self._past_box(), 2)
+
         self._timer = QtCore.QTimer(self, interval=100, timeout=self._poll)
         self._n_drawn = 0
+        self._last_res = None
+        self.name.editingFinished.connect(self.refresh_past)
+        self.folder.editingFinished.connect(self.refresh_past)
         self.load_from_task()
+        if self.main_window is None:
+            self.refresh_past()
         self._set_running(False)
+
+    def _past_box(self) -> QtWidgets.QGroupBox:
+        box = QtWidgets.QGroupBox("Saved calibrations for this mouse")
+        v = QtWidgets.QVBoxLayout(box)
+        row = QtWidgets.QHBoxLayout()
+        lab = QtWidgets.QLabel("Target field (mT)")
+        self.target = QtWidgets.QDoubleSpinBox(decimals=1, singleStep=1)
+        self.target.setRange(0.1, 10_000)
+        self.target.setValue(25)
+        self.target.setAccessibleName("Target field (mT)")
+        self.target.setToolTip("Field you want; the table shows the amplitude (V) each calibration predicts for it")
+        lab.setBuddy(self.target)
+        self.target.valueChanged.connect(self._target_changed)
+        row.addWidget(lab)
+        row.addWidget(self.target)
+        row.addStretch()
+        v.addLayout(row)
+        self.past_table = QtWidgets.QTableWidget(0, 7)
+        self.past_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        self.past_table.verticalHeader().setVisible(False)
+        self.past_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.past_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.past_table.setAccessibleName("Saved calibrations")
+        v.addWidget(self.past_table)
+        self.past_note = QtWidgets.QLabel("", objectName="muted", wordWrap=True)
+        v.addWidget(self.past_note)
+        self.past: list = []
+        return box
+
+    def refresh_past(self) -> None:
+        """Re-read the saved calibrations of the mouse named in the window."""
+        self.past = find_past(self.folder.text(), self.name.text())
+        self._fill_past()
+
+    def _fill_past(self) -> None:
+        target = self.target.value()
+        self.past_table.setHorizontalHeaderLabels(["Date", "Pulse (ms)", "Scaling", "Tested (V)", "mT per V", "R²",
+                                                  f"V for {target:g} mT"])
+        self.past_table.setRowCount(len(self.past))
+        extrapolated = False
+        for r, cal in enumerate(self.past):
+            date = f"{cal.date[:4]}-{cal.date[4:6]}-{cal.date[6:]}" if len(cal.date) == 8 else cal.date
+            volts = cal.volts_for(target)
+            if volts is None:
+                pred = "–"
+            elif abs(volts) > 10:
+                pred = "over 10 V"
+            elif not cal.in_tested_range(volts):
+                pred, extrapolated = f"{volts:.2f} *", True
+            else:
+                pred = f"{volts:.2f}"
+            texts = (date, f"{cal.duration_ms:g}", f"{cal.scaling_factor:g}", ", ".join(f"{a:g}" for a in cal.tested_v),
+                     f"{cal.mT_per_V:.2f}", "–" if not np.isfinite(cal.r2) else f"{cal.r2:.3f}", pred)
+            detail = "\n".join(f"{s['amplitude_V']:g} V: {s['mean_mT']:.2f} ± {s['sd_mT']:.2f} mT (n = {s['n']})"
+                               for s in cal.summary) + f"\n\n{cal.folder}"
+            for c, text in enumerate(texts):
+                item = QtWidgets.QTableWidgetItem(text)
+                item.setTextAlignment(QtCore.Qt.AlignCenter)
+                item.setToolTip(detail)
+                self.past_table.setItem(r, c, item)
+        if not self.name.text().strip():
+            note = "Enter a mouse name to see its calibrations."
+        elif not self.past:
+            note = "No saved calibration for this mouse in this folder."
+        else:
+            note = ("Prediction from each fit (mT = k × V). Valid only for the same pulse duration and scaling factor. "
+                    "Hover a row for the measured values.")
+            if extrapolated:
+                note += "\n* Outside the amplitudes tested: extrapolated."
+        self.past_note.setText(note)
+
+    def _target_changed(self) -> None:
+        self._fill_past()
+        if self._last_res is not None:
+            self._show_results(self._last_res)
 
     # ------------------------------------------------------------------------
     def plan(self) -> CalibrationPlan:
@@ -172,6 +254,7 @@ class CalibrationWindow(QtWidgets.QWidget):
             else:
                 c.setChecked(False)
             v.setEnabled(c.isChecked())
+        self.refresh_past()
 
     def start(self) -> None:
         if self.run is not None and not self.run.done.is_set():
@@ -193,6 +276,7 @@ class CalibrationWindow(QtWidgets.QWidget):
             return
         self.run = CalibrationRun(rig, plan, self.spins["sensor_scale"].value())
         self._n_drawn = 0
+        self._last_res = None
         self.saved_to = ""
         self.stim_plot.clear()
         self.field_plot.clear()
@@ -252,6 +336,7 @@ class CalibrationWindow(QtWidgets.QWidget):
                 self._save()
 
     def _show_results(self, res) -> None:
+        self._last_res = res
         rows = res.summary()
         self.table.setRowCount(len(rows))
         for r, row in enumerate(rows):
@@ -267,7 +352,9 @@ class CalibrationWindow(QtWidgets.QWidget):
             xs = np.array([min(0.0, x.min()), max(0.0, x.max())])
             self.fit_line.setData(xs, fit["mT_per_V"] * xs)
             r2 = "" if not np.isfinite(fit["r2"]) else f"\nR² = {fit['r2']:.3f}"
-            self.fit_text.setText(f"{fit['mT_per_V']:.2f} mT per V{r2}")
+            volts = res.volts_for(self.target.value())
+            pred = "" if volts is None else f"\n{self.target.value():g} mT ≈ {volts:.2f} V"
+            self.fit_text.setText(f"{fit['mT_per_V']:.2f} mT per V{r2}{pred}")
             self.fit_text.setPos(0, float(np.nanmax(y)) if y.size else 0)
 
     def _save(self) -> None:
@@ -285,6 +372,7 @@ class CalibrationWindow(QtWidgets.QWidget):
         self.saved_to = str(paths["mat"])
         stopped = "" if len(res.trial_amps) == len(res.plan.trial_amplitudes()) else " (stopped early)"
         self.status.setText(f"Done{stopped}: {fit['mT_per_V']:.2f} mT/V.\nSaved in {folder}")
+        self.refresh_past()
 
     def apply_to_task(self) -> None:
         if self.run is None or not self.run.result.trial_amps or self.main_window is None:

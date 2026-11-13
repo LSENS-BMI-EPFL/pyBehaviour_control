@@ -7,7 +7,7 @@ import pytest
 from scipy.io import loadmat
 
 from pybehaviour.calibration import (
-    CalibrationPlan, CalibrationResult, CalibrationRun, output_folder, save_result,
+    CalibrationPlan, CalibrationResult, CalibrationRun, find_past, output_folder, save_result, volts_for_field,
 )
 from pybehaviour.rig.fake import FakeRig
 from pybehaviour.stimuli import whisker_waveform
@@ -109,3 +109,30 @@ def test_rig_error_is_reported():
     run.start()
     assert run.done.wait(5)
     assert "Dev2" in run.error
+
+
+def test_volts_for_target_field():
+    plan = CalibrationPlan(amplitudes_v=[1.0, 2.0, 3.0], repeats=2, **FAST)
+    res = synthetic(plan, mT_per_V=10)
+    assert res.volts_for(25) == pytest.approx(2.5, rel=1e-3)
+    assert volts_for_field(float("nan"), 25) is None and volts_for_field(0.0, 25) is None
+
+
+def test_find_past_lists_saved_calibrations_newest_first(tmp_path):
+    for date, k, amps in (("20261101", 10, [1.0, 2.0]), ("20261110", 12.5, [1.0, 3.0])):
+        plan = CalibrationPlan(amplitudes_v=amps, repeats=2, **FAST)
+        save_result(synthetic(plan, mT_per_V=k), output_folder(tmp_path, "MP001", date), "MP001", date)
+    save_result(synthetic(CalibrationPlan(**FAST), mT_per_V=5), output_folder(tmp_path, "MP002", "20261105"),
+                "MP002", "20261105")
+    broken = tmp_path / "MP001" / "MP001_20261111"
+    broken.mkdir()
+    (broken / "MP001_20261111_stim_coil_calibration_summary.json").write_text("{", encoding="utf-8")
+
+    past = find_past(tmp_path, " MP001 ")
+    assert [c.date for c in past] == ["20261110", "20261101"]  # other mice and unreadable files left out
+    new = past[0]
+    assert new.tested_v == [1.0, 3.0] and new.duration_ms == 3.0 and new.scaling_factor == 0.9
+    assert new.mT_per_V == pytest.approx(12.5, rel=1e-3) and new.summary[1]["mean_mT"] == pytest.approx(37.5, rel=1e-3)
+    assert new.volts_for(25) == pytest.approx(2.0, rel=1e-3) and new.in_tested_range(2.0)
+    assert not new.in_tested_range(new.volts_for(50))  # 4 V: beyond the 3 V tested
+    assert find_past(tmp_path, "") == [] and find_past(tmp_path, "nobody") == []
