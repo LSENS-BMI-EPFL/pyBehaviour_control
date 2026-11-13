@@ -12,3 +12,6 @@ wheels/
 # test / sim output
 .pytest_cache/
 tests/data/matlab_sessions/*/results_replay.csv
+
+# scripts/noise_report.py output (default --out)
+noise_report.png
