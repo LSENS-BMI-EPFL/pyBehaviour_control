@@ -711,3 +711,71 @@ def test_peak_decimate_keeps_short_pulses_and_few_points():
     assert yd.min() == -1.0 and yd.max() == 5.0
     short = np.arange(100.0)
     assert peak_decimate(short, short, LIVE_PLOT_BINS)[1] is short  # small inputs untouched
+
+
+def test_copy_today_to_server_asks_which_session(window, app, tmp_path, monkeypatch):
+    from datetime import date
+
+    from test_server_copy import make_session
+    from pybehaviour.gui.server_dialog import ServerCopyDialog
+
+    data, server = tmp_path / "data", tmp_path / "server"
+    server.mkdir()
+    today = date.today().strftime("%Y%m%d")
+    make_session(data, "AB01", f"{today}_090000", n_trials=2)
+    make_session(data, "AB01", f"{today}_140000", n_trials=200)
+    make_session(data, "AB02", f"{today}_100000")
+    make_session(data, "AB02", "20200101_100000")  # not today
+    window.rig_config.server_directory = str(server)
+    window.b.widgets["behaviour_directory"].setText(str(data))
+    monkeypatch.setattr(ServerCopyDialog, "exec", lambda self: 0)
+
+    window._copy_to_server()
+    dlg = window.server_dialog
+    assert dlg.undecided() == ["AB01"] and not dlg.copy_btn.isEnabled()
+    dlg.choose("AB01", 1)
+    assert dlg.copy_btn.isEnabled()
+    assert [s.name for s in dlg.chosen()] == [f"AB01_{today}_140000", f"AB02_{today}_100000"]
+    dlg.start_copy()
+    end = time.time() + 10
+    while dlg.running() and time.time() < end:
+        pump(app, 0.05)
+    pump(app, 0.2)
+    assert (server / "AB01" / "Training" / f"AB01_{today}_140000" / "log_continuous.bin").is_file()
+    assert (server / "AB02" / "Training" / f"AB02_{today}_100000" / "results.csv").is_file()
+    assert not (server / "AB01" / "Training" / f"AB01_{today}_090000").exists()
+    assert dlg.status.text().startswith("Done.") and not dlg.problems.isVisible()
+    dlg.reject()
+
+
+def test_copy_to_server_without_server_directory(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a, **k: shown.append(a[1]))
+    window.rig_config.server_directory = ""
+    window._copy_to_server()
+    assert shown == ["No server folder"]
+
+
+def test_copy_to_server_waits_for_a_slow_server_without_freezing(window, app, monkeypatch):
+    from PySide6 import QtCore
+
+    from pybehaviour import server_copy
+
+    def slow_look_up(*_):
+        time.sleep(0.6)  # like a disconnected network drive
+        return False, []
+
+    shown = []
+    ticks = []
+    monkeypatch.setattr(server_copy, "look_up", slow_look_up)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: shown.append(a[1]))
+    QtCore.QTimer.singleShot(400, lambda: ticks.append(1))  # only fires if the GUI keeps running events
+    window.rig_config.server_directory = "//nowhere/share"
+    window._copy_to_server()
+    assert shown == ["Server not found"] and ticks == [1]
+
+    # Cancel in the wait box: give up quietly
+    shown.clear()
+    monkeypatch.setattr(QtWidgets.QProgressDialog, "wasCanceled", lambda self: True)
+    window._copy_to_server()
+    assert shown == []

@@ -66,6 +66,8 @@ Runtime and I/O:
   `context.py`). The hook list is in `modules/__init__.py`.
 - `replay.py`: runs a recorded session through the state machine.
 - `wiring.py`: draws the wiring diagram from a rig file.
+- `server_copy.py`: copies today's sessions to `<server_directory>/<mouse>/Training/`.
+  The server is write-only: never overwrite, rename or delete files there.
 
 GUI (`gui/`): `main_window.py` (large; layout, start/stop, live plots), one window per
 module or calibration (`opto_window.py`, `pdco_window.py`, `calibration_window.py`,

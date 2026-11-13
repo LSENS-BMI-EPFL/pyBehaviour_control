@@ -95,6 +95,8 @@ class Calibration:
 class RigConfig:
     name: str = "default"
     behaviour_directory: str = "D:/Behavior/BehaviourData"
+    # lab server for "Copy today to server": sessions go to <server_directory>/<mouse>/Training/<session>
+    server_directory: str = ""
     main_input: MainInput = field(default_factory=MainInput)
     log_input: LogInput = field(default_factory=LogInput)
     triggers: Triggers = field(default_factory=Triggers)

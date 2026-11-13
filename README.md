@@ -167,6 +167,20 @@ gain until the meter reads the same for both: the gains are the task settings
 in the rig file and in `session_config.json`). During a session, changing them in the Context tab is
 heard immediately. The noise now loops, so it never stops mid-block.
 
+## Copy to server
+
+*Copy today to server* (top bar, when no session runs) copies the sessions
+recorded today in the data folder to
+`<server_directory>/<mouse>/Training/<mouse>_<date>_<time>`. Set
+`server_directory:` in the rig file (for example `//server/share/data`).
+If a mouse has several sessions today, pick the one to copy (or none); each
+is shown with its start time, trials, duration, hit rates and size.
+
+The server is write-only, so nothing there is ever changed or deleted: files
+already on the server with the same size are skipped, and a file with a
+different size is reported and left as it is (ask the server admin to remove
+it). Cancel stops after the file being copied.
+
 ## Using the GUI
 
 Settings are on the left (preset bar and tabs), live signals and performance in the centre,

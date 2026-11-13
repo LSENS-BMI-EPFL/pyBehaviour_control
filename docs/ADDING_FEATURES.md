@@ -28,6 +28,7 @@ src/pybehaviour/
   rig/             Rig interface, FakeRig (tests/sim), NiRig (hardware), rig.yaml loader
   gui/             Qt windows (main, opto, PdCO), theme.py = colours/fonts; no logic that needs testing
   replay.py        run a recorded session through the state machine
+  server_copy.py   copy today's sessions to the server (write-only: never overwrites)
 tests/             one test file per module; conftest.py has the session simulator
 ```
 

@@ -5,6 +5,7 @@
 
 name: SV-07-054
 behaviour_directory: E:/behaviour_data
+server_directory: "M:/data/"
 
 main_input:            # lick sensor used for trial control
   channel: Dev1/ai0

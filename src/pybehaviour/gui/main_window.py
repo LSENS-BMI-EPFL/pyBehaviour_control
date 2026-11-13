@@ -16,7 +16,7 @@ Keyboard: F5 start, F6 pause, F7 resume, F8 manual reward, Ctrl+. stop.
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
@@ -29,7 +29,7 @@ from ..modules.opto import OptoConfig, OptoModule
 from ..modules.pdco import PdcoConfig, PdcoModule
 from ..params import SessionParams
 from ..planner import CONTEXTS
-from .. import mouse_settings
+from .. import mouse_settings, server_copy
 from ..mouse_settings import MOUSE_FIELDS
 from ..presets import NOT_IN_PRESET, RIG_FIELDS, Preset, PresetStore, check_name, load_session_settings, rig_fields
 from ..results import compute_performance, compute_reward_volume, sliding_rates
@@ -43,6 +43,7 @@ from .calibration_window import CalibrationWindow
 from .export_dialog import ExportDefaultsDialog
 from .opto_window import OptoWindow
 from .pdco_window import PdcoWindow
+from .server_dialog import CANCELLED, ServerCopyDialog, run_with_wait
 from .sound_window import SoundWindow
 from .valve_window import ValveWindow
 
@@ -244,6 +245,14 @@ class MainWindow(QtWidgets.QMainWindow):
             btn.setToolTip(tips[btn])
             btn.setAccessibleName(tips[btn])
             h.addWidget(btn)
+        h.addSpacing(8)
+        self.server_btn = QtWidgets.QPushButton("⇪  Copy today to server")
+        tip = "Copy today's sessions to the lab server (server_directory in the rig file)"
+        self.server_btn.setToolTip(tip)
+        self.server_btn.setAccessibleName(tip)
+        self.server_btn.setMinimumHeight(38)
+        self.server_btn.clicked.connect(self._copy_to_server)
+        h.addWidget(self.server_btn)
         h.addSpacing(16)
         self.status_pill = QtWidgets.QLabel(objectName="statusPill")
         self.status_pill.setAccessibleName("Session state")
@@ -1113,6 +1122,38 @@ class MainWindow(QtWidgets.QMainWindow):
     def _export_defaults(self) -> None:
         ExportDefaultsDialog(self).exec()
 
+    def _copy_to_server(self) -> None:
+        """Copy today's session folders to <server_directory>/<mouse>/Training/ (one session per mouse)."""
+        if self.session is not None and self.session.running:
+            QtWidgets.QMessageBox.warning(self, "Session running", "Stop the session before copying to the server.")
+            return
+        server = self.rig_config.server_directory.strip()
+        rig_file = self.rig_config.source or "the rig file"
+        if not server:
+            QtWidgets.QMessageBox.information(
+                self, "No server folder",
+                f"Add the server folder to {rig_file}, for example:\n\nserver_directory: //server/share/data")
+            return
+        data_dir = self.params().behaviour_directory or self.rig_config.behaviour_directory
+        try:
+            found = run_with_wait(self, f"Looking for {server}…",
+                                  lambda: server_copy.look_up(data_dir, date.today(), server))
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(self, "Cannot list sessions", str(exc))
+            return
+        if found is CANCELLED:
+            return
+        reachable, sessions = found
+        if not reachable:
+            QtWidgets.QMessageBox.warning(self, "Server not found",
+                                          f"Cannot reach {server}.\nIs the network drive connected?")
+            return
+        if not sessions:
+            QtWidgets.QMessageBox.information(self, "Nothing to copy", f"No session recorded today in {data_dir}.")
+            return
+        self.server_dialog = ServerCopyDialog(self, sessions, server, data_dir)
+        self.server_dialog.exec()
+
     def rig_defaults_changed(self) -> None:
         """The rig file's defaults were rewritten: make them what 'Default settings' restores."""
         from ..presets import startup_params
@@ -1258,6 +1299,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _set_running(self, running: bool) -> None:
         self.start_btn.setEnabled(not running)
+        self.server_btn.setEnabled(not running)
         for w in (self.stop_btn, self.pause_btn, self.resume_btn, self.manual_reward_btn, self.update_config_btn):
             w.setEnabled(running)
         for name in ("mouse_name", "behaviour_directory", "context_flag", "context_table_directory",

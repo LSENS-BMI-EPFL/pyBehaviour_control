@@ -5,6 +5,9 @@
 
 name: example
 behaviour_directory: D:/Behavior/BehaviourData
+# Lab server for the "Copy today to server" button: sessions go to
+# <server_directory>/<mouse>/Training/<mouse>_<date>_<time>. Leave empty if none.
+server_directory: ""
 
 main_input:            # lick sensor used for trial control
   channel: Dev1/ai0
