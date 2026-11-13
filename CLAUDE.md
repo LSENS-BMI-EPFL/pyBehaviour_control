@@ -1,7 +1,8 @@
 # Guide for agents
 
-Read this first. It tells you what the project is, where things are, and the rules
-that are easy to break. Details live in the docs linked below; don't repeat them here.
+Read this first. It tells you what the project is, where things are, the rules that
+are easy to break, and which model to use for delegated work. Details live in the docs
+linked below; don't repeat them here.
 
 ## What this is
 
@@ -105,6 +106,37 @@ noise files, noise level reports).
   else is in presets. Don't let presets or old sessions overwrite rig settings.
 - **Units** follow the MATLAB GUI: ms, V, Hz. Times inside the task are seconds on the
   acquisition sample clock, never wall-clock time.
+
+## Models and subagents
+
+The main session runs on the strongest model (Opus or Fable). It plans, decides and
+checks the result. It hands clear, self-contained pieces of work to the project agents
+in `.claude/agents/`. Each agent has its model fixed in its file, so the main session
+only picks the agent. This applies to whichever model runs the main session.
+
+| Agent | Model | Use it for | Examples in this project |
+|---|---|---|---|
+| `lookup` | Haiku | Finding things. Read-only. | Where a setting or function is defined or used. Which files touch a feature. What a doc, a log or a session folder says. |
+| `chores` | Haiku | Mechanical work: no judgement needed, easy to check. | Run `uv run pytest -q` and report the failures. Regenerate `docs/SETTINGS.md` or a wiring diagram. Rename something across files. |
+| `implementer` | Sonnet | Code or tests from a clear brief that follows an existing recipe or pattern. | A new setting, stimulus or module hook from `docs/ADDING_FEATURES.md`. Tests for one module. A widget or window change in `gui/`. |
+| `reviewer` | Sonnet | First review of a diff. Read-only. | Check a change against the rules above before the final review. |
+| none (main session) | Opus or Fable | Work where a small mistake is costly, or where the task is not clear yet. | Trial rules and anything in `PARITY.md`. Logic in `task.py`, `planner.py`, `outcomes.py`. Threads and locks. Output file formats. `rig/ni.py`. Design choices. The final review. |
+
+For work that fits none of these, use a built-in agent and set `model` on the call
+(`haiku` or `sonnet`); without it the subagent runs on the main session's model.
+
+How to delegate:
+- Small things are not delegated. If it takes a few tool calls, do it directly.
+- Pick the cheapest agent that can do the task. Between two, take the stronger one.
+- The brief names the files, the rules from this guide that apply, and what "done"
+  means (usually: the tests pass).
+- Independent pieces run in parallel. Two subagents never edit the same file.
+- A subagent that runs into a main-session area (last row of the table) stops and
+  reports back. It does not guess.
+- A subagent's report is not proof. The main session reads the diff and runs
+  `uv run pytest -q` itself before it says the work is done.
+- If a result from a Haiku agent looks wrong, redo it with a Sonnet agent instead of
+  patching it.
 
 ## Style
 
